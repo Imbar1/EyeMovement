@@ -338,7 +338,7 @@
   <script>
     const A = 'https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
     const assets = [
-      'BIULogo – criminology.png', 'forward.png', 'only_forward.jpg', 'back_and_forward.jpg',
+      'biu_logo.png', 'forward.png', 'only_forward.jpg', 'back_and_forward.jpg',
       'glasses_YN.jpg', 'consent_pic.jpg', 'confir.png', 'b_women_pics.jpg', 'b_men_pics.jpg',
       'SMT_instructions.jpg', 'SMT_example.jpg', 'twoSessInst.jpg', 'b_practice.jpg', 'b_STM.jpg',
       'b_sig_rate.jpg',
@@ -387,8 +387,8 @@
     const assetUrl = n => enc(n);
 
     const picture = (n, c = '') => {
-      const variants = n === 'BIULogo – criminology.png' 
-        ? ['BIULogo – criminology.png', 'BIULogo - criminology.png', 'BIULogo%20%E2%80%93%20criminology.png'] 
+      const variants = n === 'biu_logo.png' 
+        ? ['biu_logo.png', 'biu_logo.png', 'biu_logo.png'] 
         : [];
       const src = variants.length ? assetUrl(variants[0]) : assetUrl(n);
       const fallback = variants.length 
@@ -853,7 +853,7 @@
 
         webgazer
           .setRegression('ridge')
-          .setTracker('TFFacemesh')
+          .setTracker('clmtrackr')
           .showVideoPreview(true)
           .showPredictionPoints(true)
           .setGazeListener(data => {
@@ -1218,7 +1218,7 @@
       localStorage.setItem('participant_' + S.id + '_data', JSON.stringify(p));
 
       base(`
-        ${picture('BIULogo - criminology.png', 'logo')}
+        ${picture('biu_logo.png', 'logo')}
         <div class="panel">
           <h1>תודה רבה על השתתפותך 😊</h1>
           <p>הניסוי הסתיים בהצלחה.</p>
