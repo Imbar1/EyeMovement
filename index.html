@@ -863,17 +863,22 @@
 		if (!window.webgazer) {throw new Error('ספריית WebGazer לא נטענה בדף. יש לבדוק את תגית ה-script ב-head ואת החיבור לרשת.');
 		}
 		try {
-			webgazer.saveDataAcrossSessions(false);
 
 			webgazer
 				.setRegression('ridge')
-				.showVideoPreview(true)
+				.showVideo(true)
 				.showPredictionPoints(true)
 				.setGazeListener((data, elapsedTime) => {
-					if (data && Number.isFinite(data.x) && Number.isFinite(data.y)) {
+					if (data && 
+						Number.isFinite(data.x) && 
+						Number.isFinite(data.y)) {
 						window.__wgFaceSeen?.();
 						window.__lastGaze = data;
-						S.raw.push({ x: data.x, y: data.y, t: Date.now() });
+						S.raw.push({
+							x: data.x,
+							y: data.y,
+							t: Date.now()
+						});
 					}
 				});
 
