@@ -847,7 +847,7 @@
       try {
         const v = webgazer.getVideoElement?.();
         if (v) v.style.display = 'none';
-        webgazer.showVideoPreview(false);
+        webgazer.showVideo(false);
         webgazer.setGazeListener(null);
       } catch (e) {}
     }
