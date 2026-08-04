@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
   
   <!-- WebGazer -->
-  <script src="https://unpkg.com/webgazer@8.2.1"></script>
+  <script src="https://unpkg.com/webgazer@2.0.1/dist/webgazer.js"></script>
   
   <style>
     * {
@@ -854,43 +854,40 @@
 
     // הפעלת WebGazer המתוקנת למניעת שגיאות ה-404 ב-MediaPipe
     async function startWebgazer() {
-      if (!window.webgazer) {
-        throw new Error('WebGazer לא נטען');
-      }
+		// המתנה קצרה לטעינת הקובץ במידה והוא בטעינה איטית
+		let retries = 0;
+		while (!window.webgazer && retries < 25) {
+			await new Promise(r => setTimeout(r, 200));
+			retries++;
+		}
+		if (!window.webgazer) {throw new Error('ספריית WebGazer לא נטענה בדף. יש לבדוק את תגית ה-script ב-head ואת החיבור לרשת.');
+		}
+		try {
+			webgazer.saveDataAcrossSessions(false);
 
-      try {
-        webgazer.saveDataAcrossSessions(false);
+			webgazer
+				.setRegression('ridge')
+				.showVideoPreview(true)
+				.showPredictionPoints(true)
+				.setGazeListener((data, elapsedTime) => {
+					if (data && Number.isFinite(data.x) && Number.isFinite(data.y)) {
+						window.__wgFaceSeen?.();
+						window.__lastGaze = data;
+						S.raw.push({ x: data.x, y: data.y, t: Date.now() });
+					}
+				});
 
-        if (window.FaceMesh) {
-          window.FACEMESH_SCRIPT_URLS = {
-            simd: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh_solution_simd_wasm_bin.js',
-            assets: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh_solution_packed_assets_loader.js'
-          };
-        }
+			await webgazer.begin();
+			await new Promise(resolve => setTimeout(resolve, 1500));
 
-        webgazer
-          .setRegression('ridge')
-          .showVideoPreview(true)
-          .showPredictionPoints(true)
-          .setGazeListener(data => {
-            if (data && Number.isFinite(data.x) && Number.isFinite(data.y)) {
-              window.__wgFaceSeen?.();
-              window.__lastGaze = data;
-              S.raw.push({ x: data.x, y: data.y, t: Date.now() });
-            }
-          });
-
-        await webgazer.begin();
-        await new Promise(resolve => setTimeout(resolve, 1800));
-
-        startFaceMonitor();
-        window.__webgazerStarted = true;
-        return true;
-      } catch (err) {
-        console.error('WebGazer initialization failed:', err);
-        throw err;
-      }
-    }
+			startFaceMonitor();
+			window.__webgazerStarted = true;
+			return true;
+		} catch (err) {
+		console.error('WebGazer init failed:', err);
+		throw err;
+		}
+	}
 
     function calibrate(block) {
       let attempts = 1;
