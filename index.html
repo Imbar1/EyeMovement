@@ -4,8 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ניסוי זיכרון קצר־טווח ומעקב עיניים</title>
+  
   <script src="https://unpkg.com/jspsych@8.2.1"></script>
-  <script src="https://webgazer.cs.brown.edu/webgazer.js"></script>
+  
+  <!-- MediaPipe FaceMesh Dependencies (מונע שגיאות 404 על קבצי WASM מקומיים) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  
+  <!-- WebGazer -->
+  <script src="https://unpkg.com/webgazer@8.2.1"></script>
   
   <style>
     * {
@@ -403,6 +410,16 @@
 
     function k(fn) {
       document.onkeydown = e => fn(e);
+    }
+
+    function exit(msg) {
+      stopFaceMonitor();
+      base(`
+        <div class="panel">
+          <h2>הניסוי הופסק</h2>
+          <p>${msg}</p>
+        </div>
+      `);
     }
 
     async function preload() {
@@ -835,31 +852,31 @@
       } catch (e) {}
     }
 
+    // הפעלת WebGazer המתוקנת למניעת שגיאות ה-404 ב-MediaPipe
     async function startWebgazer() {
       if (!window.webgazer) {
         throw new Error('WebGazer לא נטען');
       }
 
-      if (typeof webgazer.setRegression !== 'function') {
-        throw new Error('גרסת WebGazer שנטענה אינה כוללת setRegression');
-      }
-
-      if (typeof webgazer.setTracker !== 'function') {
-        throw new Error('גרסת WebGazer שנטענה אינה כוללת setTracker');
-      }
-
       try {
         webgazer.saveDataAcrossSessions(false);
 
+        if (window.FaceMesh) {
+          window.FACEMESH_SCRIPT_URLS = {
+            simd: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh_solution_simd_wasm_bin.js',
+            assets: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh_solution_packed_assets_loader.js'
+          };
+        }
+
         webgazer
           .setRegression('ridge')
-          .setTracker('clmtrackr')
           .showVideoPreview(true)
           .showPredictionPoints(true)
           .setGazeListener(data => {
             if (data && Number.isFinite(data.x) && Number.isFinite(data.y)) {
               window.__wgFaceSeen?.();
               window.__lastGaze = data;
+              S.raw.push({ x: data.x, y: data.y, t: Date.now() });
             }
           });
 
@@ -1026,7 +1043,6 @@
       const familiar = (sex === 'F' ? S.female : S.male).map(x => String(x).split('/').pop());
       const f1 = familiar[0] || `${sex}1.webp`;
       const f2 = familiar[1] || `${sex}2.webp`;
-      const U = sex === 'F' ? 'UNf' : 'UNm';
 
       const rows = sex === 'F' 
         ? [
@@ -1089,19 +1105,66 @@
           requestAnimationFrame(() => {
             const grid = document.querySelector('.trial-grid');
             if (!grid) return;
-
             grid.style.visibility = 'visible';
-            const t0 = performance.now();
-
-            if (r.ffi) track(t0, sex, tno);
 
             setTimeout(() => {
               base('<div class="bottom-fix">+</div>');
-              setTimeout(() => response([...faces, r.s, r.c], go), 3000);
+
+              setTimeout(() => {
+                const singleName = String(r.s).endsWith('.webp') ? String(r.s) : String(r.s) + '.webp';
+
+                base(`
+                  ${picture(singleName, 'center')}
+                  <div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div>
+                  <div class="keys">
+                    <span class="yes">I = כן</span>
+                    <span class="no">E = לא</span>
+                  </div>
+                `);
+
+                const t = performance.now();
+                let answered = false;
+
+                const advance = (key, correct) => {
+                  if (answered) return;
+                  answered = true;
+                  document.onkeydown = null;
+
+                  S.trials.push({
+                    block,
+                    trialNum: tno,
+                    sex,
+                    ffi: r.ffi,
+                    faces: faces.join(';'),
+                    single: singleName,
+                    target: r.c,
+                    key,
+                    rt: performance.now() - t,
+                    correct
+                  });
+
+                  go();
+                };
+
+                document.onkeydown = e => {
+                  const key = String(e.key || '').toLowerCase();
+                  const q = e.code === 'KeyI' || key === 'i' || key === 'ך' ? 'i' : e.code === 'KeyE' || key === 'e' || key === 'ק' ? 'e' : '';
+
+                  if (!q) return;
+
+                  e.preventDefault();
+                  advance(q, q === r.c);
+                };
+
+                setTimeout(() => {
+                  if (!answered) advance('timeout', false);
+                }, 2000);
+
+              }, 3000);
             }, 5000);
           });
         }).catch(err => {
-          console.error('Main trial preload failed', err);
+          console.error('Main trial preload failed:', err);
           go();
         });
       };
@@ -1109,129 +1172,92 @@
       go();
     }
 
-    function track(t0, sex, trial) {
-      const f = () => {
-        const now = performance.now();
-        let pred = null;
-
-        try {
-          pred = webgazer.getCurrentPrediction();
-        } catch (err) {
-          console.warn('Could not read gaze prediction:', err);
-        }
-
-        const x = Number.isFinite(pred?.x) ? pred.x : null;
-        const y = Number.isFinite(pred?.y) ? pred.y : null;
-
-        S.raw.push({
-          participant: S.id,
-          block: sex,
-          trial,
-          timestamp: now - t0,
-          gazeX: x,
-          gazeY: y,
-          screenWidth: window.innerWidth,
-          screenHeight: window.innerHeight,
-          phase: now - t0 <= 1000 ? 'Phase1' : 'Phase2'
-        });
-
-        if (now - t0 < 5000) {
-          requestAnimationFrame(f);
-        }
-      };
-
-      requestAnimationFrame(f);
-    }
-
     function screen16() {
       stopFaceMonitor();
-
-      try {
-        webgazer.end();
-      } catch (e) {
-        console.warn('Could not end WebGazer:', e);
-      }
-
-      window.__webgazerStarted = false;
-
-      base(`
-        <div class="panel">
-          <h2>מעקב העיניים הסתיים</h2>
-          <p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p>
-        </div>
-        <button class="btn" id="b">המשך</button>
-      `);
-
-      document.getElementById('b').addEventListener('click', () => {
-        instr('b_sig_rate.jpg', 'ratings');
-      });
+      instr('b_sig_rate.jpg', 'screen17');
     }
 
-    function ratings() {
-      const all = [
+    function screen17() {
+      const allFaces = [
+        ...S.female.map(x => String(x).split('/').pop()),
+        ...S.male.map(x => String(x).split('/').pop()),
         ...Array.from({ length: 14 }, (_, i) => `UNf${i + 1}.webp`),
-        ...S.female,
-        ...Array.from({ length: 14 }, (_, i) => `UNm${i + 1}.webp`),
-        ...S.male
-      ];
+        ...Array.from({ length: 14 }, (_, i) => `UNm${i + 1}.webp`)
+      ].sort(() => Math.random() - 0.5);
 
-      const go = () => {
-        if (!ratings.i) ratings.i = 0;
-        if (ratings.i >= all.length) return finish();
+      let idx = 0;
+
+      const next = () => {
+        if (idx >= allFaces.length) {
+          finishAndSave();
+          return;
+        }
+
+        const face = allFaces[idx];
 
         base(`
-          <h2>באיזה מידה פרצוף זה תפס לך את העין?</h2>
-          ${picture(all[ratings.i], 'rating-face')}
-          <p>1 = במידה מועטה מאוד 9 = במידה רבה מאוד</p>
-          <div class="scale">
-            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
+          <div class="panel">
+            <h2>עד כמה הפרצוף הזה מוכר לך?</h2>
+            <p>1 = לא מוכר בכלל, 9 = מוכר מאוד</p>
+            ${picture(face, 'rating-face')}
+            <div class="scale">
+              ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => `<button class="btn" onclick="rate(${num})">${num}</button>`).join('')}
+            </div>
           </div>
         `);
       };
 
-      ratings.rate = n => {
-        S.ratings.push({ stimulus: all[ratings.i], rating: n });
-        ratings.i++;
-        go();
+      window.rate = score => {
+        S.ratings.push({ face: allFaces[idx], rating: score });
+        idx++;
+        next();
       };
 
-      go();
+      next();
     }
 
-    function finish() {
-      const p = {
-        participant_summary: {
-          ParticipantNo: S.id,
-          Age: S.age,
-          Gender: S.gender,
-          Calibration_Attempts_block1: S.cal1,
-          Calibration_Attempts_block2: S.cal2,
-          Calibration_Accuracy_Score_Block1: S.calAcc1,
-          Calibration_Accuracy_Score_Block2: S.calAcc2,
-          raw_gaze_count: S.raw.length,
-          ratings: S.ratings
-        },
-        raw_gaze: S.raw,
-        trials: S.trials
-      };
+    function downloadData(filename, text) {
+      const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
 
-      localStorage.setItem('participant_' + S.id + '_data', JSON.stringify(p));
-
+    function finishAndSave() {
       base(`
-        ${picture('biu_logo.png', 'logo')}
         <div class="panel">
-          <h1>תודה רבה על השתתפותך 😊</h1>
-          <p>הניסוי הסתיים בהצלחה.</p>
+          <h2>תודה רבה על השתתפותך!</h2>
+          <p>הניסוי הסתיים בהצלחה. הנתונים נשמרים כעת במחשבך.</p>
         </div>
       `);
+
+      // 1. קובץ ניסוי ראשי
+      let trialCsv = 'ID,Age,Gender,Block,TrialNum,Sex,FFI,Faces,SingleFace,Target,ResponseKey,RT,Correct\n';
+      S.trials.forEach(t => {
+        trialCsv += `${S.id},${S.age},${S.gender},${t.block || 'practice'},${t.trialNum || ''},${t.sex || ''},${t.ffi || ''},"${t.faces || ''}",${t.single || ''},${t.target || ''},${t.key},${Math.round(t.rt)},${t.correct}\n`;
+      });
+      downloadData(`sub_${S.id}_trials.csv`, trialCsv);
+
+      // 2. קובץ דירוג פרצופים
+      let ratingCsv = 'ID,Face,Rating\n';
+      S.ratings.forEach(r => {
+        ratingCsv += `${S.id},${r.face},${r.rating}\n`;
+      });
+      downloadData(`sub_${S.id}_ratings.csv`, ratingCsv);
+
+      // 3. קובץ תנועות עיניים (Raw Gaze)
+      let gazeCsv = 'ID,Timestamp,X,Y\n';
+      S.raw.forEach(g => {
+        gazeCsv += `${S.id},${g.t},${Math.round(g.x)},${Math.round(g.y)}\n`;
+      });
+      downloadData(`sub_${S.id}_gaze.csv`, gazeCsv);
     }
 
-    function exit(t) {
-      base(`<div class="panel"><h2>${t}</h2></div>`);
-    }
-
-    // טעינת כל המשאבים מתחילה מיד עם פתיחת הדף
-    preload();
+    // הריצה ההתחלתית
+    window.onload = preload;
   </script>
 </body>
 </html>
