@@ -644,8 +644,8 @@ function ratings(){
       <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
       ${picture(all[ratings.i],'rating-face')}
       <div class="rating-labels">
-        <span>1 = במידה מועטה מאוד</span>
         <span>9 = במידה רבה מאוד</span>
+        <span>1 = במידה מועטה מאוד</span>
       </div>
       <div class="scale">
         ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
