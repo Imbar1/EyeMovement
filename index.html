@@ -269,7 +269,7 @@ function initFaceMeshSystem() {
       }
 
       ctx.fillStyle = '#00FFFF';
-      for(let i=0; i<lm.length; i+=2) {
+      for(let i=0; i<lm.length; i+=10) {
         ctx.beginPath();
         ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.2, 0, 2 * Math.PI);
         ctx.fill();
@@ -448,7 +448,13 @@ function screenFaceSetup(block){
       <button class="btn" id="goCalBtn">המשך לכיול</button>
     </div>
   `);
-  document.getElementById('goCalBtn').onclick = () => calibrate(block);
+  document.getElementById('goCalBtn').onclick = () => {
+    // החזרה למסך מלא בלחיצה על הכפתור (בטוח מול הגבלות הדפדפן)
+    if (!document.fullscreenElement) {
+      enterFullscreen();
+    }
+    calibrate(block);
+  }
 }
 
 function calibrate(block){
