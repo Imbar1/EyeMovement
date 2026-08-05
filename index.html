@@ -8,9 +8,10 @@
 <!-- JSPsych -->
 <script src="https://unpkg.com/jspsych@8.2.1"></script>
 
-<!-- MediaPipe Camera Utils & Face Mesh -->
+<!-- MediaPipe Camera Utils, Face Mesh & Drawing Utils -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -53,7 +54,9 @@ h2{font-size:30px}
 .p4{left:10vw;top:55vh}
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
-.keys{position:absolute;bottom:14vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;color:#063b88;direction:ltr}
+
+/* עודכן מ-14vh ל-11vh */
+.keys{position:absolute;bottom:11vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;color:#063b88;direction:ltr}
 .keys .yes{position:absolute;right:8vw;white-space:nowrap}
 .keys .no{position:absolute;left:8vw;white-space:nowrap}
 
@@ -76,6 +79,11 @@ h2{font-size:30px}
 .rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
 .scale{direction:ltr}
 .scale button{font-size:22px;width:42px;height:42px;margin:4px}
+
+/* =========================================================
+   DEBUG STYLING: אינדיקטור בדיקת מעקב עיניים
+   ========================================================= */
+.debug-gaze-box{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:70px;font-weight:bold;color:#ffea00;background:rgba(0,0,0,0.65);padding:10px 30px;border-radius:12px;z-index:9999;pointer-events:none;border:3px solid #ffea00;display:none}
 </style>
 </head>
 <body>
@@ -90,6 +98,9 @@ h2{font-size:30px}
   </div>
   <div id="cameraStatusText" class="camera-status-text">מאתר פנים…</div>
 </div>
+
+<!-- אלמנט לבדיקת אינדיקטור 1-4 -->
+<div id="debugGazeBox" class="debug-gaze-box">?</div>
 
 <script>
 const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
@@ -144,7 +155,7 @@ function solveLinearRegression(X, Y) {
       }
     }
   }
-  for(let i=0; i<K; i++) XTX[i][i] += 1e-4; // Regularization
+  for(let i=0; i<K; i++) XTX[i][i] += 1e-4;
 
   let I = Array.from({length: K}, (_, i) => Array.from({length: K}, (_, j) => i === j ? 1 : 0));
   let M = XTX.map(row => [...row]);
@@ -193,6 +204,27 @@ function predictGaze() {
   return {x, y};
 }
 
+/* =========================================================
+   DEBUG MODE: אינדיקטור רביעייות לבדיקת מעקב עיניים בלייב (1,2,3,4)
+   [להסרה קלה: מחיקת פונקציה זו וקריאתה בלבד בעתיד]
+   ========================================================= */
+function updateDebugQuadrant(gaze) {
+  const box = document.getElementById('debugGazeBox');
+  if(!box) return;
+  if(!gaze) {
+    box.textContent = '?';
+    return;
+  }
+  const midX = window.innerWidth / 2;
+  const midY = window.innerHeight / 2;
+  
+  if (gaze.x < midX && gaze.y < midY) box.textContent = '1';      // למעלה-שמאלה
+  else if (gaze.x >= midX && gaze.y < midY) box.textContent = '2'; // למעלה-ימינה
+  else if (gaze.x >= midX && gaze.y >= midY) box.textContent = '3';// למטה-ימינה
+  else if (gaze.x < midX && gaze.y >= midY) box.textContent = '4'; // למטה-שמאלה
+}
+/* ========================================================= */
+
 function initFaceMeshSystem() {
   if(faceMesh) return Promise.resolve(true);
 
@@ -219,28 +251,30 @@ function initFaceMeshSystem() {
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const lm = results.multiFaceLandmarks[0];
       
-      // נקודות מפתח: אישון שמאל (468), אישון ימין (473), קצה אף (1), פינות עיניים (33, 263)
-      const lIris = lm[468], rIris = lm[473], nose = lm[1];
+      // ציור הרשת הצהובה (Tessellation) בדומה לתמונה המצורפת
+      if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
+        drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#E6E600', lineWidth: 0.8});
+      }
 
-      // ציור נקודות תווי פנים ואישונים בתוך ה-Canvas
-      ctx.fillStyle = '#00ff7f';
-      [1, 33, 263, 61, 291].forEach(i => {
+      // ציור נקודות תווי הפנים בטורקיז/ציאן בדומה לתמונה
+      ctx.fillStyle = '#00FFFF';
+      for(let i=0; i<lm.length; i+=2) {
         ctx.beginPath();
-        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 2, 0, 2 * Math.PI);
+        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.2, 0, 2 * Math.PI);
         ctx.fill();
-      });
+      }
 
-      ctx.fillStyle = '#ff0055';
+      // מדגיש אישונים בוורוד/ציאן בולט
+      ctx.fillStyle = '#FF007F';
       [468, 473].forEach(i => {
         ctx.beginPath();
-        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 3, 0, 2 * Math.PI);
+        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 2.5, 0, 2 * Math.PI);
         ctx.fill();
       });
 
-      // חילוץ וקטור מאפיינים
+      const lIris = lm[468], rIris = lm[473], nose = lm[1];
       currentFeatures = [1, lIris.x, lIris.y, rIris.x, rIris.y, nose.x, nose.y];
 
-      // בדיקת מיקום פנים בתוך המסגרת
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
 
       if (centered) {
@@ -379,7 +413,7 @@ function screenMovementInstructions(){
 }
 
 function screen12(block=1){
-  base('<div class="panel"><h2>מכינים את המצלמה למעקב עיניים</h2><p>נא לאשר גישה למצלמה ולהישאר מול המסך.</p><p id="wgStatus">מפעילי את מודל הפנים...</p></div>');
+  base('<div class="panel"><h2>מכינים את המצלמה למעקב עיניים</h2><p>נא לאשר גישה למצלמה ולהישאר מול המסך.</p><p id="wgStatus">מפעילים את מודל הפנים...</p></div>');
   initFaceMeshSystem().then(()=>{
     document.getElementById('wgStatus')?.remove();
     screenFaceSetup(block);
@@ -420,7 +454,6 @@ function calibrate(block){
     let index = 0;
     const next = () => {
       if(index >= points.length){
-        // חישוב מודל הרגרסיה בסיום הכיול
         if(calibDataX.length >= 10) {
           const X = calibDataX.map(d => d.feat);
           const Yx = calibDataX.map(d => d.target);
@@ -514,6 +547,10 @@ function mainStart(block){
   let trialIndex=0;
   const go=()=>{
     if(trialIndex>=rows.length){
+      // הסתרת האינדיקטור בסיום הבלוק
+      const debugBox = document.getElementById('debugGazeBox');
+      if(debugBox) debugBox.style.display = 'none';
+
       block===1?screen13(2):screen16();
       return;
     }
@@ -530,6 +567,11 @@ function mainStart(block){
         const grid=document.querySelector('.trial-grid');
         if(!grid)return;
         grid.style.visibility='visible';
+
+        // הצגת התיבה של הבדיקה (1-4) במהלך הניסוי
+        const debugBox = document.getElementById('debugGazeBox');
+        if(debugBox) debugBox.style.display = 'block';
+
         const t0=performance.now();
         if(r.ffi)track(t0,sex,tno);
         setTimeout(()=>{
@@ -548,6 +590,10 @@ function track(t0,sex,trial){
     const now=performance.now();
     if(now>=stopAt)return;
     const gaze = predictGaze();
+
+    /* עדכון אינדיקטור 1-4 בלייב */
+    updateDebugQuadrant(gaze);
+
     S.raw.push({
       participant:S.id,
       block:sex,
@@ -567,6 +613,8 @@ function track(t0,sex,trial){
 function screen16(){
   if(cameraUtils) cameraUtils.stop();
   document.getElementById('cameraPopup')?.classList.remove('show');
+  document.getElementById('debugGazeBox')?.remove(); // הסרת תיבת הדיבאג
+
   base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
   b.onclick=()=>instr('b_sig_rate.jpg','ratings');
 }
