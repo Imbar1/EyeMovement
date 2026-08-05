@@ -628,6 +628,12 @@ function track(t0,sex,trial){
 function screen16(){
   if(cameraUtils) cameraUtils.stop();
   document.getElementById('cameraPopup')?.classList.remove('show');
+  // הסתרה מוחלטת של חלון המצלמה
+  const popup = document.getElementById('cameraPopup');
+  if (popup) {
+    popup.classList.remove('show', 'good', 'bad');
+    popup.style.display = 'none';
+  }
   base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
   b.onclick=()=>instr('b_sig_rate.jpg','ratings');
 }
