@@ -51,7 +51,7 @@ h2{font-size:30px}
 .no-btn:hover{background:#ad4b4b}
 .count{font-size:110px}
 
-/* הסתרת הסמן (העכבר) במהלך הבלוקים */
+/* הסתרת הסמן (העכבר) במהלך הבלוקים (בלוק האימון והבלוקים הראשיים) */
 .trial-grid{position:absolute;inset:0;cursor:none}
 
 .pos{position:absolute;width:40vw;height:40vh;object-fit:contain}
@@ -366,6 +366,7 @@ function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);cons
 let showFeedback=false;
 const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
 
+// פונקציית הטרייל המתוקנת
 function trial(row,done){
   const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
   base('<div class="fix">+</div>');
@@ -379,8 +380,8 @@ function trial(row,done){
       if(!grid)return;
       grid.style.visibility='visible';
 
-      const t0=performance.now();
-      if(r.ffi)track(t0,sex,tno);
+      // *** התיקון כאן: הסרתי את קריאת המעקב שהשתמשה במשתנה r לא מוגדר ***
+
       setTimeout(()=>{
         base('<div class="bottom-fix">+</div>');
         // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
@@ -580,8 +581,11 @@ function mainStart(block){
         const grid=document.querySelector('.trial-grid');
         if(!grid)return;
         grid.style.visibility='visible';
+        
+        // החזרתי את קריאת המעקב פנימה, היכן שהמשתנה r מוגדר
         const t0=performance.now();
         if(r.ffi)track(t0,sex,tno);
+
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
           // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
