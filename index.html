@@ -265,7 +265,7 @@ function initFaceMeshSystem() {
       const lm = results.multiFaceLandmarks[0];
       
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
-        drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.8});
+        drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.5});
       }
 
       ctx.fillStyle = '#00FFFF';
