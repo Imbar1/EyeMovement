@@ -13,6 +13,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 
+<!-- Firebase SDKs (Compat CDN) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;background:#808080;color:#fff;font-family:Calibri,Arial,sans-serif}
@@ -46,7 +50,10 @@ h2{font-size:30px}
 .no-btn{background:#9b3f3f;color:#fff}
 .no-btn:hover{background:#ad4b4b}
 .count{font-size:110px}
-.trial-grid{position:absolute;inset:0}
+
+/* הסתרת הסמן (העכבר) במהלך הבלוקים */
+.trial-grid{position:absolute;inset:0;cursor:none}
+
 .pos{position:absolute;width:40vw;height:40vh;object-fit:contain}
 .p1{left:10vw;top:5vh}
 .p2{left:50vw;top:5vh}
@@ -55,7 +62,6 @@ h2{font-size:30px}
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
-/* עודכן מ-14vh ל-11vh */
 .keys{position:absolute;bottom:11vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;color:#063b88;direction:ltr}
 .keys .yes{position:absolute;right:8vw;white-space:nowrap}
 .keys .no{position:absolute;left:8vw;white-space:nowrap}
@@ -77,19 +83,18 @@ h2{font-size:30px}
 .status{min-height:30px;color:#ffe66d}
 .selection-error{color:#9b3f3f;font-size:26px;font-weight:bold;min-height:34px}
 .rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
-.scale{direction:ltr}
-.scale button{font-size:22px;width:42px;height:42px;margin:4px}
 
-/* =========================================================
-   DEBUG STYLING: אינדיקטור בדיקת מעקב עיניים
-   ========================================================= */
-.debug-gaze-box{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:70px;font-weight:bold;color:#ffea00;background:rgba(0,0,0,0.65);padding:10px 30px;border-radius:12px;z-index:9999;pointer-events:none;border:3px solid #ffea00;display:none}
+/* עיצוב משופר למסך הדירוג */
+.rating-instruction-text{font-size:28px;margin:20px 0;font-weight:bold}
+.rating-labels{display:flex;justify-content:space-between;width:80%;max-width:800px;margin:10px auto;font-size:24px;font-weight:bold}
+.scale{direction:ltr;margin-top:20px;display:flex;justify-content:center;gap:15px} /* ריווח בין הכפתורים */
+.scale button{font-size:26px;width:55px;height:55px;background:#f0f0f0;color:#333;border:2px solid #ccc;border-radius:8px;cursor:pointer;transition:all 0.2s ease}
+.scale button:hover{background:#98fb98;border-color:#32cd32} /* אפקט הובר ירוק בהיר */
 </style>
 </head>
 <body>
 <main id="app" class="app"></main>
 
-<!-- חלון וידאו צף קבוע בפינה -->
 <div id="cameraPopup" class="camera-popup bad">
   <div class="camera-label">מיקום פנים</div>
   <div class="cam-wrapper">
@@ -99,10 +104,26 @@ h2{font-size:30px}
   <div id="cameraStatusText" class="camera-status-text">מאתר פנים…</div>
 </div>
 
-<!-- אלמנט לבדיקת אינדיקטור 1-4 -->
-<div id="debugGazeBox" class="debug-gaze-box">?</div>
-
 <script>
+// ==========================================
+// Firebase Initialization
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyATnU0sw0n1cXNLEWI13m99WccZd1II0GE",
+  authDomain: "eyemovementexp.firebaseapp.com",
+  projectId: "eyemovementexp",
+  storageBucket: "eyemovementexp.firebasestorage.app",
+  messagingSenderId: "286816318134",
+  appId: "1:286816318134:web:674736a9f0685c62e9ec17",
+  measurementId: "G-VZXF88SGR5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ==========================================
+// Variables & Data Structures
+// ==========================================
 const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
 const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
 const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],cal1:0,cal2:0,calAcc1:0,calAcc2:0};
@@ -129,6 +150,20 @@ const picture=(n,c='')=>`<img class="${c}" src="${assetUrl(n)}" alt="${n}" loadi
 function base(h){root.innerHTML=`<section class="screen">${h}</section>`}
 function k(fn){document.onkeydown=e=>fn(e)}
 
+// פונקציית עזר למעבר למסך מלא
+function enterFullscreen() {
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+  } else if (elem.mozRequestFullScreen) { /* Firefox */
+    elem.mozRequestFullScreen();
+  } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) { /* IE/Edge */
+    elem.msRequestFullscreen();
+  }
+}
+
 // ==========================================
 // MediaPipe Face Mesh & Custom Regression Model
 // ==========================================
@@ -143,7 +178,6 @@ let weightsY = null;
 let goodStateStartTime = 0;
 let isAligned = false;
 
-// אלגוריתם רגרסיה לינארית (Least Squares Solver)
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
@@ -204,27 +238,6 @@ function predictGaze() {
   return {x, y};
 }
 
-/* =========================================================
-   DEBUG MODE: אינדיקטור רביעייות לבדיקת מעקב עיניים בלייב (1,2,3,4)
-   [להסרה קלה: מחיקת פונקציה זו וקריאתה בלבד בעתיד]
-   ========================================================= */
-function updateDebugQuadrant(gaze) {
-  const box = document.getElementById('debugGazeBox');
-  if(!box) return;
-  if(!gaze) {
-    box.textContent = '?';
-    return;
-  }
-  const midX = window.innerWidth / 2;
-  const midY = window.innerHeight / 2;
-  
-  if (gaze.x < midX && gaze.y < midY) box.textContent = '1';      // למעלה-שמאלה
-  else if (gaze.x >= midX && gaze.y < midY) box.textContent = '2'; // למעלה-ימינה
-  else if (gaze.x >= midX && gaze.y >= midY) box.textContent = '3';// למטה-ימינה
-  else if (gaze.x < midX && gaze.y >= midY) box.textContent = '4'; // למטה-שמאלה
-}
-/* ========================================================= */
-
 function initFaceMeshSystem() {
   if(faceMesh) return Promise.resolve(true);
 
@@ -251,12 +264,10 @@ function initFaceMeshSystem() {
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const lm = results.multiFaceLandmarks[0];
       
-      // ציור הרשת הצהובה (Tessellation) בדומה לתמונה המצורפת
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#E6E600', lineWidth: 0.8});
       }
 
-      // ציור נקודות תווי הפנים בטורקיז/ציאן בדומה לתמונה
       ctx.fillStyle = '#00FFFF';
       for(let i=0; i<lm.length; i+=2) {
         ctx.beginPath();
@@ -264,7 +275,6 @@ function initFaceMeshSystem() {
         ctx.fill();
       }
 
-      // מדגיש אישונים בוורוד/ציאן בולט
       ctx.fillStyle = '#FF007F';
       [468, 473].forEach(i => {
         ctx.beginPath();
@@ -319,7 +329,7 @@ function initFaceMeshSystem() {
 }
 
 // ==========================================
-// זרימת הניסוי והמסכים
+// Flow & Screens
 // ==========================================
 async function preload(){
   base(`<div class="panel"><h1>נא להמתין בזמן שכל חומרי הניסוי נטענים</h1><p>אנא המתן/י עד לסיום הטעינה. אין לסגור את החלון.</p><progress id="pr" max="${assets.length}" value="0"></progress><p id="pc">0%</p></div>`);
@@ -336,7 +346,8 @@ async function preload(){
   screen1();
 }
 
-function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;screenDemographics()})}
+// שינוי 2: מעבר למסך מלא לאחר הזנת מספר משתתף
+function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); /* הפעלת מסך מלא */screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
 function screen2(){base(`<div class="panel consent-choice"><h2>האם את/ה מרכיב/ה משקפיים?</h2><div><button class="btn" id="yes">כן</button><button class="btn no-btn" id="no">לא</button></div></div>`);document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));document.getElementById('no').addEventListener('click',consentScreen)}
 function consentScreen(){base(`<div class="panel consent-form"><h2>טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
@@ -361,13 +372,18 @@ function trial(row,done){
   const loadPromise=preloadTrial(faces);
   const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
   Promise.all([loadPromise,timerPromise]).then(()=>{
+    // שינוי 3: העכבר מוסתר כאן באמצעות ה-CSS של .trial-grid
     base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
     requestAnimationFrame(()=>{
       const grid=document.querySelector('.trial-grid');
       if(!grid)return;
       grid.style.visibility='visible';
+
+      const t0=performance.now();
+      if(r.ffi)track(t0,sex,tno);
       setTimeout(()=>{
         base('<div class="bottom-fix">+</div>');
+        // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
         setTimeout(()=>response(row,done),3000);
       },5000);
     });
@@ -547,10 +563,6 @@ function mainStart(block){
   let trialIndex=0;
   const go=()=>{
     if(trialIndex>=rows.length){
-      // הסתרת האינדיקטור בסיום הבלוק
-      const debugBox = document.getElementById('debugGazeBox');
-      if(debugBox) debugBox.style.display = 'none';
-
       block===1?screen13(2):screen16();
       return;
     }
@@ -562,20 +574,17 @@ function mainStart(block){
     const loadPromise=preloadTrial(faces);
     const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
     Promise.all([loadPromise,timerPromise]).then(()=>{
+      // שינוי 3: העכבר מוסתר כאן באמצעות ה-CSS של .trial-grid
       base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
       requestAnimationFrame(()=>{
         const grid=document.querySelector('.trial-grid');
         if(!grid)return;
         grid.style.visibility='visible';
-
-        // הצגת התיבה של הבדיקה (1-4) במהלך הניסוי
-        const debugBox = document.getElementById('debugGazeBox');
-        if(debugBox) debugBox.style.display = 'block';
-
         const t0=performance.now();
         if(r.ffi)track(t0,sex,tno);
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
+          // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
           setTimeout(()=>response([...faces,r.s,r.c],go),3000);
         },5000);
       });
@@ -590,10 +599,6 @@ function track(t0,sex,trial){
     const now=performance.now();
     if(now>=stopAt)return;
     const gaze = predictGaze();
-
-    /* עדכון אינדיקטור 1-4 בלייב */
-    updateDebugQuadrant(gaze);
-
     S.raw.push({
       participant:S.id,
       block:sex,
@@ -613,18 +618,29 @@ function track(t0,sex,trial){
 function screen16(){
   if(cameraUtils) cameraUtils.stop();
   document.getElementById('cameraPopup')?.classList.remove('show');
-  document.getElementById('debugGazeBox')?.remove(); // הסרת תיבת הדיבאג
-
   base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
   b.onclick=()=>instr('b_sig_rate.jpg','ratings');
 }
 
+// שינוי 4: עיצוב מחודש למסך הדירוגים
 function ratings(){
   const all=[...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...S.female,...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...S.male];
   const go=()=>{
     if(!ratings.i)ratings.i=0;
-    if(ratings.i>=all.length)return finish();
-    base(`<h2>באיזה מידה פרצוף זה תפס לך את העין?</h2>${picture(all[ratings.i],'rating-face')}<p>1 = במידה מועטה מאוד 9 = במידה רבה מאוד</p><div class="scale">${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}</div>`);
+    if(ratings.i>=all.length) return finishSavingScreen(); // שינוי 5: מעבר למסך השמירה
+
+    // שימוש במחלקות ה-CSS החדשות לעיצוב
+    base(`
+      <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
+      ${picture(all[ratings.i],'rating-face')}
+      <div class="rating-labels">
+        <span>1 = במידה מועטה מאוד</span>
+        <span>9 = במידה רבה מאוד</span>
+      </div>
+      <div class="scale">
+        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
+      </div>
+    `);
   };
   ratings.rate=n=>{
     S.ratings.push({stimulus:all[ratings.i],rating:n});
@@ -634,8 +650,12 @@ function ratings(){
   go();
 }
 
-function finish(){
-  const p={
+// שינוי 5: מסך ביניים "שומר נתונים" ווידוא שמירה ב-Firebase
+function finishSavingScreen() {
+  // הצגת מסך ההמתנה
+  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. אנא אל תסגור/י את הדף.</p></div>`);
+
+  const dataToSave = {
     participant_summary:{
       ParticipantNo:S.id,
       Age:S.age,
@@ -648,14 +668,48 @@ function finish(){
       ratings:S.ratings
     },
     raw_gaze:S.raw,
-    trials:S.trials
+    trials:S.trials,
+    timestamp: new Date().toISOString()
   };
-  localStorage.setItem('participant_'+S.id+'_data',JSON.stringify(p));
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>תודה רבה על השתתפותך 😊</h1><p>הניסוי הסתיים בהצלחה.</p></div>`);
+
+  // גיבוי מקומי בתוך הדפדפן (localStorage)
+  localStorage.setItem('participant_'+S.id+'_data',JSON.stringify(dataToSave));
+
+  // שמירה בענן ב-Firebase Firestore
+  // אנחנו משתמשים במספר המשתתף (S.id) כשם המסמך (.doc(String(S.id)))
+  db.collection("participants").doc(String(S.id)).set(dataToSave)
+    .then(() => {
+      // השמירה הצליחה - עוברים למסך הסיום הסופי
+      console.log("הנתונים נשמרו בהצלחה ב-Firebase.");
+      finalScreen();
+    })
+    .catch((error) => {
+      // חלילה יש שגיאה - מציגים הודעה אבל עדיין מאפשרים לסיים (כי יש גיבוי מקומי)
+      console.error("שגיאה בשמירת נתונים ל-Firebase:", error);
+      finalScreen(true); // מעבירים true כדי לציין שהייתה שגיאה
+    });
+}
+
+// שינוי 6: מסך סיום סופי עם תוספת "ניתן לצאת"
+function finalScreen(hasError = false) {
+  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה.";
+  if (hasError) {
+    message = "הניסוי הסתיים. הייתה שגיאה בשמירה לענן, אך הנתונים נשמרו בגיבוי המקומי של הדפדפן.";
+  }
+
+  base(`
+    ${picture('biu_logo.png','logo')}
+    <div class="panel">
+      <h1>תודה רבה על השתתפותך 😊</h1>
+      <p>${message}</p>
+      <h2 style="margin-top: 30px; color: #ffea00;">כעת ניתן לצאת מדף זה.</h2>
+    </div>
+  `);
 }
 
 function exit(t){base(`<div class="panel"><h2>${t}</h2></div>`)}
 
+// טעינה מקדימה של כל המשאבים
 preload();
 </script>
 </body>
