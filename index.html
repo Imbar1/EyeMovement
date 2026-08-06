@@ -265,17 +265,17 @@ function initFaceMeshSystem() {
       const lm = results.multiFaceLandmarks[0];
       
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
-        drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.5});
+        drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
 
       ctx.fillStyle = '#00FFFF';
-      for(let i=0; i<lm.length; i+=15) {
+      for(let i=0; i<lm.length; i+=20) {
         ctx.beginPath();
         ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.2, 0, 2 * Math.PI);
         ctx.fill();
       }
 
-      ctx.fillStyle = '#FF007F';
+      ctx.fillStyle = '#11cf3d';
       [468, 473].forEach(i => {
         ctx.beginPath();
         ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 2.5, 0, 2 * Math.PI);
