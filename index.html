@@ -55,10 +55,10 @@ h2{font-size:30px}
 .trial-grid{position:absolute;inset:0;cursor:none}
 
 .pos{position:absolute;width:40vw;height:40vh;object-fit:contain}
-.p1{left:10vw;top:5vh}
-.p2{left:50vw;top:5vh}
-.p3{left:50vw;top:55vh}
-.p4{left:10vw;top:55vh}
+.p1{left:5vw;top:5vh}
+.p2{left:55vw;top:5vh}
+.p3{left:55vw;top:55vh}
+.p4{left:5vw;top:55vh}
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
@@ -269,7 +269,7 @@ function initFaceMeshSystem() {
       }
 
       ctx.fillStyle = '#00FFFF';
-      for(let i=0; i<lm.length; i+=10) {
+      for(let i=0; i<lm.length; i+=15) {
         ctx.beginPath();
         ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.2, 0, 2 * Math.PI);
         ctx.fill();
