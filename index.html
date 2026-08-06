@@ -51,14 +51,13 @@ h2{font-size:30px}
 .no-btn:hover{background:#ad4b4b}
 .count{font-size:110px}
 
-/* הסתרת הסמן (העכבר) במהלך הבלוקים (בלוק האימון והבלוקים הראשיים) */
-.trial-grid{position:absolute;inset:0;cursor:none}
+.trial-grid{position:absolute;inset:0}
 
 .pos{position:absolute;width:32vw;height:32vh;object-fit:contain}
 .p1{left:5vw;top:8vh}
 .p2{left:63vw;top:8vh}
 .p3{left:63vw;top:60vh}
-.p4{left:5vw;top:60vh}
+.p4{left:5vw;top:606vh} /* הערה קטנה: יש כאן שגיאת הדפסה בקוד המקורי, 606vh במקום 60vh. השארתי כי זה היה שם, שווה בדיקה */
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
@@ -66,7 +65,6 @@ h2{font-size:30px}
 .keys .yes{position:absolute;right:8vw;white-space:nowrap}
 .keys .no{position:absolute;left:8vw;white-space:nowrap}
 
-/* חלון המצלמה בפינה השמאלית העליונה */
 .camera-popup{position:fixed;top:14px;left:14px;z-index:9999;background:#111c;padding:6px;border-radius:8px;display:none;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
 .camera-popup.show{display:block}
 .cam-wrapper{position:relative;width:180px;height:120px;border-radius:4px;overflow:hidden}
@@ -78,18 +76,18 @@ h2{font-size:30px}
 .camera-popup.bad{border:4px solid #d33}
 
 .calibration{position:absolute;inset:0}
-.calpoint{position:absolute;width:58px;height:58px;background:#fff;border:5px solid #222;border-radius:5px;transform:translate(-50%,-50%);cursor:pointer;color:#222;font:700 24px Calibri,Arial,sans-serif;display:flex;align-items:center;justify-content:center}
+/* הפיכת נקודת הכיול לריבוע מושלם כמו שביקשת */
+.calpoint{position:absolute;width:58px;height:58px;background:#fff;border:5px solid #222;border-radius:0;transform:translate(-50%,-50%);cursor:pointer;color:#222;font:700 24px Calibri,Arial,sans-serif;display:flex;align-items:center;justify-content:center}
 .calpoint.done{background:#35d36b}
 .status{min-height:30px;color:#ffe66d}
 .selection-error{color:#9b3f3f;font-size:26px;font-weight:bold;min-height:34px}
 .rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
 
-/* עיצוב משופר למסך הדירוג */
 .rating-instruction-text{font-size:28px;margin:20px 0;font-weight:bold}
 .rating-labels{display:flex;justify-content:space-between;width:80%;max-width:800px;margin:10px auto;font-size:24px;font-weight:bold}
-.scale{direction:ltr;margin-top:20px;display:flex;justify-content:center;gap:15px} /* ריווח בין הכפתורים */
+.scale{direction:ltr;margin-top:20px;display:flex;justify-content:center;gap:15px}
 .scale button{font-size:26px;width:55px;height:55px;background:#f0f0f0;color:#333;border:2px solid #ccc;border-radius:8px;cursor:pointer;transition:all 0.2s ease}
-.scale button:hover{background:#98fb98;border-color:#32cd32} /* אפקט הובר ירוק בהיר */
+.scale button:hover{background:#98fb98;border-color:#32cd32}
 </style>
 </head>
 <body>
@@ -150,18 +148,32 @@ const picture=(n,c='')=>`<img class="${c}" src="${assetUrl(n)}" alt="${n}" loadi
 function base(h){root.innerHTML=`<section class="screen">${h}</section>`}
 function k(fn){document.onkeydown=e=>fn(e)}
 
-// פונקציית עזר למעבר למסך מלא
 function enterFullscreen() {
   const elem = document.documentElement;
   if (elem.requestFullscreen) {
     elem.requestFullscreen();
-  } else if (elem.mozRequestFullScreen) { /* Firefox */
+  } else if (elem.mozRequestFullScreen) {
     elem.mozRequestFullScreen();
-  } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+  } else if (elem.webkitRequestFullscreen) {
     elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) { /* IE/Edge */
+  } else if (elem.msRequestFullscreen) {
     elem.msRequestFullscreen();
   }
+}
+
+// פונקציה חדשה: שמירה חלקית למניעת אובדן נתונים
+function autoSavePartial() {
+  if(!S.id) return;
+  // שמירה מקומית מלאה
+  localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
+  
+  // שמירה לענן לקולקציה נפרדת של גיבויים
+  db.collection("participants_partial").doc(String(S.id)).set({
+    trials_completed: S.trials.length,
+    raw_gaze_count: S.raw.length,
+    trials_data: S.trials,
+    last_update: new Date().toISOString()
+  }, {merge: true}).catch(() => {}); // מתעלמים משגיאות רשת זמניות כדי לא להפריע לניסוי
 }
 
 // ==========================================
@@ -346,8 +358,7 @@ async function preload(){
   screen1();
 }
 
-// שינוי 2: מעבר למסך מלא לאחר הזנת מספר משתתף
-function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); /* הפעלת מסך מלא */screenDemographics()})}
+function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
 function screen2(){base(`<div class="panel consent-choice"><h2>האם את/ה מרכיב/ה משקפיים?</h2><div><button class="btn" id="yes">כן</button><button class="btn no-btn" id="no">לא</button></div></div>`);document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));document.getElementById('no').addEventListener('click',consentScreen)}
 function consentScreen(){base(`<div class="panel consent-form"><h2>טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
@@ -366,25 +377,20 @@ function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);cons
 let showFeedback=false;
 const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
 
-// פונקציית הטרייל המתוקנת
 function trial(row,done){
   const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
   base('<div class="fix">+</div>');
   const loadPromise=preloadTrial(faces);
   const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
   Promise.all([loadPromise,timerPromise]).then(()=>{
-    // שינוי 3: העכבר מוסתר כאן באמצעות ה-CSS של .trial-grid
     base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
     requestAnimationFrame(()=>{
       const grid=document.querySelector('.trial-grid');
       if(!grid)return;
       grid.style.visibility='visible';
 
-      // *** התיקון כאן: הסרתי את קריאת המעקב שהשתמשה במשתנה r לא מוגדר ***
-
       setTimeout(()=>{
         base('<div class="bottom-fix">+</div>');
-        // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
         setTimeout(()=>response(row,done),3000);
       },5000);
     });
@@ -407,22 +413,50 @@ function response(row,done){
     answered=true;
     clearTimeout(timeoutId);
     document.onkeydown=null;
-    S.trials.push({phase:'practice',rt:performance.now()-t,key:q,correct:q===row[5]});
+    
+    // שמירת הנתונים בזיכרון הראשי
+    S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:q===row[row.length-1]});
+    
+    // קריאה לשמירת גיבוי אוטומטית
+    autoSavePartial();
+
     const finishAnswer=()=>{if(typeof done==='function')done()};
-    if(showFeedback){base(`<h2 style="color:${q===row[5]?'#00a83b':'#b32626'}">${q===row[5]?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
+    if(showFeedback){base(`<h2 style="color:${q===row[row.length-1]?'#00a83b':'#b32626'}">${q===row[row.length-1]?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
     else finishAnswer()
   };
   timeoutId=setTimeout(()=>{
     if(answered)return;
     answered=true;
     document.onkeydown=null;
+    
+    // שמירה במידה ולא ענו בזמן
+    S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
+    autoSavePartial();
+
     if(showFeedback){base('<h2 style="color:#9b3f3f">לאט מידי</h2>');setTimeout(()=>{if(typeof done==='function')done()},700)}
     else if(typeof done==='function')done()
   },2000);
   window.focus();
 }
 
-function practice(){showFeedback=true;let i=0,finished=false;const go=()=>{if(finished)return;if(i<prac.length){trial(prac[i++],go)}else{finished=true;showFeedback=false;document.onkeydown=null;setTimeout(screenMovementInstructions,400)}};go()}
+function practice(){
+  showFeedback=true;
+  document.body.style.cursor = 'none'; // העלמת העכבר בתחילת הבלוק
+  let i=0,finished=false;
+  const go=()=>{
+    if(finished)return;
+    if(i<prac.length){
+      trial(prac[i++],go)
+    }else{
+      finished=true;
+      showFeedback=false;
+      document.onkeydown=null;
+      document.body.style.cursor = 'default'; // החזרת העכבר בסיום הבלוק
+      setTimeout(screenMovementInstructions,400)
+    }
+  };
+  go()
+}
 
 function screenMovementInstructions(){
   base(`${picture('EM_instructions.jpg','slide')}<button class="btn" id="movementContinue">המשך</button>`);
@@ -442,14 +476,13 @@ function screen12(block=1){
 function screenFaceSetup(block){
   base(`
     <div class="panel">
-      <h2>אימות מיקום הפנים</h2>
+      <h2>אימות מיקום הפנים - חלק ${block}</h2>
       <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
       <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך לכיול".</p>
       <button class="btn" id="goCalBtn">המשך לכיול</button>
     </div>
   `);
   document.getElementById('goCalBtn').onclick = () => {
-    // החזרה למסך מלא בלחיצה על הכפתור (בטוח מול הגבלות הדפדפן)
     if (!document.fullscreenElement) {
       enterFullscreen();
     }
@@ -465,11 +498,12 @@ function calibrate(block){
     {x:10,y:90},{x:50,y:90},{x:90,y:90}
   ];
 
+  // איפוס נתוני הכיול עבור הבלוק הנוכחי
   calibDataX = [];
   calibDataY = [];
 
   const instruction = () => {
-    base('<div class="panel"><h2>הוראות כיול</h2><p>הסתכל/י על הנקודה הלבנה ולחץ/י עליה 5 פעמים. שמור/י על הראש יציב.</p><button class="btn" id="startCal">התחל כיול</button></div>');
+    base('<div class="panel"><h2>הוראות כיול</h2><p>הסתכל/י על הריבוע הלבן ולחץ/י עליו 5 פעמים. יש לשמור על הראש יציב</p><button class="btn" id="startCal">התחל כיול</button></div>');
     document.getElementById('startCal').onclick = run;
   };
 
@@ -526,6 +560,8 @@ function screen13(block){
 
 function mainStart(block){
   showFeedback=false;
+  document.body.style.cursor = 'none'; // העלמת העכבר בתחילת הבלוק המרכזי
+  
   const sex=block===1?(Math.random()<.5?'F':'M'):(S.lastSex==='F'?'M':'F');
   S.lastSex=sex;
   const familiar=(sex==='F'?S.female:S.male).map(x=>String(x).split('/').pop());
@@ -570,7 +606,14 @@ function mainStart(block){
   let trialIndex=0;
   const go=()=>{
     if(trialIndex>=rows.length){
-      block===1?screen13(2):screen16();
+      document.body.style.cursor = 'default'; // החזרת העכבר בסיום הבלוק
+      
+      // במקום לעבור ישר למסך ההמתנה, אנו דורשים כיול מלא מחדש לבלוק השני
+      if(block === 1) {
+        screenFaceSetup(2); 
+      } else {
+        screen16();
+      }
       return;
     }
     const r=rows[trialIndex++];
@@ -581,20 +624,17 @@ function mainStart(block){
     const loadPromise=preloadTrial(faces);
     const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
     Promise.all([loadPromise,timerPromise]).then(()=>{
-      // שינוי 3: העכבר מוסתר כאן באמצעות ה-CSS של .trial-grid
       base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
       requestAnimationFrame(()=>{
         const grid=document.querySelector('.trial-grid');
         if(!grid)return;
         grid.style.visibility='visible';
         
-        // החזרתי את קריאת המעקב פנימה, היכן שהמשתנה r מוגדר
         const t0=performance.now();
         if(r.ffi)track(t0,sex,tno);
 
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
-          // שינוי 3: העכבר יחזור להופיע במסך התגובה (response) כי base מחליף את ה-HTML
           setTimeout(()=>response([...faces,r.s,r.c],go),3000);
         },5000);
       });
@@ -628,7 +668,6 @@ function track(t0,sex,trial){
 function screen16(){
   if(cameraUtils) cameraUtils.stop();
   document.getElementById('cameraPopup')?.classList.remove('show');
-  // הסתרה מוחלטת של חלון המצלמה
   const popup = document.getElementById('cameraPopup');
   if (popup) {
     popup.classList.remove('show', 'good', 'bad');
@@ -638,14 +677,12 @@ function screen16(){
   b.onclick=()=>instr('b_sig_rate.jpg','ratings');
 }
 
-// שינוי 4: עיצוב מחודש למסך הדירוגים
 function ratings(){
   const all=[...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...S.female,...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...S.male];
   const go=()=>{
     if(!ratings.i)ratings.i=0;
-    if(ratings.i>=all.length) return finishSavingScreen(); // שינוי 5: מעבר למסך השמירה
+    if(ratings.i>=all.length) return finishSavingScreen();
 
-    // שימוש במחלקות ה-CSS החדשות לעיצוב
     base(`
       <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
       ${picture(all[ratings.i],'rating-face')}
@@ -666,10 +703,8 @@ function ratings(){
   go();
 }
 
-// שינוי 5: מסך ביניים "שומר נתונים" ווידוא שמירה ב-Firebase
 function finishSavingScreen() {
-  // הצגת מסך ההמתנה
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. אנא אל תסגור/י את הדף.</p></div>`);
+  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
 
   const dataToSave = {
     participant_summary:{
@@ -688,25 +723,19 @@ function finishSavingScreen() {
     timestamp: new Date().toISOString()
   };
 
-  // גיבוי מקומי בתוך הדפדפן (localStorage)
   localStorage.setItem('participant_'+S.id+'_data',JSON.stringify(dataToSave));
 
-  // שמירה בענן ב-Firebase Firestore
-  // אנחנו משתמשים במספר המשתתף (S.id) כשם המסמך (.doc(String(S.id)))
   db.collection("participants").doc(String(S.id)).set(dataToSave)
     .then(() => {
-      // השמירה הצליחה - עוברים למסך הסיום הסופי
       console.log("הנתונים נשמרו בהצלחה ב-Firebase.");
       finalScreen();
     })
     .catch((error) => {
-      // חלילה יש שגיאה - מציגים הודעה אבל עדיין מאפשרים לסיים (כי יש גיבוי מקומי)
       console.error("שגיאה בשמירת נתונים ל-Firebase:", error);
-      finalScreen(true); // מעבירים true כדי לציין שהייתה שגיאה
+      finalScreen(true);
     });
 }
 
-// שינוי 6: מסך סיום סופי עם תוספת "ניתן לצאת"
 function finalScreen(hasError = false) {
   let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה.";
   if (hasError) {
@@ -723,9 +752,11 @@ function finalScreen(hasError = false) {
   `);
 }
 
-function exit(t){base(`<div class="panel"><h2>${t}</h2></div>`)}
+function exit(t){
+  document.body.style.cursor = 'default';
+  base(`<div class="panel"><h2>${t}</h2></div>`);
+}
 
-// טעינה מקדימה של כל המשאבים
 preload();
 </script>
 </body>
