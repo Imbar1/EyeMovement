@@ -76,9 +76,9 @@ h2{font-size:30px}
 .camera-popup.bad{border:4px solid #d33}
 
 /* אלמנט כיול אוטומטי */
-.calib-stage{position:absolute;inset:0;z-index:30;background:#111}
+.calib-stage{position:absolute;inset:0;z-index:30;background:#808080}
 .calib-target{position:absolute;transform:translate(-50%,-50%);width:80px;height:80px;display:flex;align-items:center;justify-content:center}
-.calib-center-dot{width:12px;height:12px;background-color:#00ffcc;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 8px #00ffcc}
+.calib-center-dot{width:14px;height:14px;background-color:#00ffcc;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 10px #00ffcc}
 
 .calib-ring{
   width:70px;
@@ -88,7 +88,7 @@ h2{font-size:30px}
   position:absolute;
   box-sizing:border-box;
   transform-origin:center center;
-  animation:shrinkRing 1.5s linear forwards;
+  animation:shrinkRing 1.2s linear forwards;
 }
 
 @keyframes shrinkRing {
@@ -312,12 +312,10 @@ function initFaceMeshSystem() {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
 
-      // אישונים ופינות עין
       const lIris = lm[468], rIris = lm[473];
       const lOut = lm[33], lIn = lm[133];
       const rOut = lm[263], rIn = lm[362];
 
-      // סינון בזמן מצמוץ
       const lTop = lm[159], lBot = lm[145];
       const lEyeH = Math.hypot(lTop.x - lBot.x, lTop.y - lBot.y);
       const lEyeW = Math.hypot(lOut.x - lIn.x, lOut.y - lIn.y);
@@ -327,7 +325,6 @@ function initFaceMeshSystem() {
         return;
       }
 
-      // מרכזי העיניים הסטטיים
       const mLx = (lOut.x + lIn.x) / 2;
       const mLy = (lOut.y + lIn.y) / 2;
       const mRx = (rOut.x + rIn.x) / 2;
@@ -335,7 +332,6 @@ function initFaceMeshSystem() {
 
       const eyeDistance = Math.hypot(mRx - mLx, mRy - mLy) || 0.1;
 
-      // הסטות מנורמלות
       const dxL = (lIris.x - mLx) / eyeDistance;
       const dyL = (lIris.y - mLy) / eyeDistance;
       const dxR = (rIris.x - mRx) / eyeDistance;
@@ -343,7 +339,6 @@ function initFaceMeshSystem() {
 
       const noseBridge = lm[6];
 
-      // וקטור תכונות פולינומיאלי
       currentFeatures = [
         1,
         dxL, dyL,
@@ -553,109 +548,104 @@ function screenFaceSetup(block){
     <div class="panel">
       <h2>אימות מיקום הפנים - חלק ${block}</h2>
       <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
-      <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך לכיול".</p>
-      <button class="btn" id="goCalBtn">המשך לכיול</button>
+      <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך".</p>
+      <button class="btn" id="goCalBtn">המשך</button>
     </div>
   `);
   document.getElementById('goCalBtn').onclick = () => {
     if (!document.fullscreenElement) {
       enterFullscreen();
     }
-    calibrate(block);
+    document.getElementById('cameraPopup')?.classList.remove('show');
+    screen13(block);
   }
 }
 
 // ==========================================
-// כיול אוטומטי (5 נקודות עם טבעת מצטמצמת)
+// פונקציית כיול 5 נקודות אוטומטי (לפני כל מסך 4 פרצופים)
 // ==========================================
-function calibrate(block){
-  base(`
-    <div class="panel">
-      <h2>הוראות כיול אוטומטי</h2>
-      <p>כעת יופיעו 5 נקודות ברצף על גבי המסך.</p>
-      <p>בכל נקודה תופיע טבעת שתתכווץ לתוך הנקודה.</p>
-      <p><strong>יש לעקוב במבט בלבד אחר הטבעת המצטמצמת ולשמור על ראש יציב.</strong></p>
-      <button class="btn" id="startCal">התחל כיול</button>
-    </div>
-  `);
+function run5PointCalibration(onComplete) {
+  document.getElementById('cameraPopup')?.classList.remove('show');
 
-  document.getElementById('startCal').onclick = () => {
-    document.getElementById('cameraPopup')?.classList.remove('show');
+  const points = [
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 90, y: 90 },
+    { x: 10, y: 90 },
+    { x: 50, y: 50 } // הנקודה החמישית ממוקמת במרכז exact
+  ];
 
-    const points = [
-      { x: 10, y: 10 },
-      { x: 90, y: 10 },
-      { x: 90, y: 90 },
-      { x: 10, y: 90 },
-      { x: 50, y: 50 }
-    ];
+  calibDataX = [];
+  calibDataY = [];
+  smoothGazeX = null;
+  smoothGazeY = null;
+  let index = 0;
 
-    calibDataX = [];
-    calibDataY = [];
-    smoothGazeX = null;
-    smoothGazeY = null;
-    let index = 0;
-
-    function runPointSequence() {
-      if (index >= points.length) {
-        if(calibDataX.length >= 10) {
-          const X = calibDataX.map(d => d.feat);
-          const Yx = calibDataX.map(d => d.target);
-          const Yy = calibDataY.map(d => d.target);
-          weightsX = solveLinearRegression(X, Yx);
-          weightsY = solveLinearRegression(X, Yy);
-        }
-        if(block === 1){ S.cal1 = 1; S.calAcc1 = 100; }
-        else { S.cal2 = 1; S.calAcc2 = 100; }
-        
-        screen13(block);
-        return;
+  function runNextPoint() {
+    if (index >= points.length) {
+      if (calibDataX.length >= 8) {
+        const X = calibDataX.map(d => d.feat);
+        const Yx = calibDataX.map(d => d.target);
+        const Yy = calibDataY.map(d => d.target);
+        weightsX = solveLinearRegression(X, Yx);
+        weightsY = solveLinearRegression(X, Yy);
       }
-
-      const pt = points[index];
-      base(`
-        <div class="calib-stage">
-          <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
-            <div class="calib-center-dot"></div>
-            <div class="calib-ring"></div>
-          </div>
-        </div>
-      `);
-
-      const targetX = (pt.x / 100) * window.innerWidth;
-      const targetY = (pt.y / 100) * window.innerHeight;
-
-      const startTimePoint = performance.now();
-      const duration = 1500; // 1.5 שניות לנקודה
-      const ignoreInitialMs = 300; // התעלמות מ-300ms ראשונות לביטול Saccade Latency
-
-      function sampleLoop() {
-        const elapsed = performance.now() - startTimePoint;
-
-        if (elapsed >= ignoreInitialMs && elapsed < duration) {
-          if (currentFeatures) {
-            calibDataX.push({ feat: [...currentFeatures], target: targetX });
-            calibDataY.push({ feat: [...currentFeatures], target: targetY });
-          }
-        }
-
-        if (elapsed < duration) {
-          requestAnimationFrame(sampleLoop);
-        } else {
-          index++;
-          runPointSequence();
-        }
-      }
-
-      requestAnimationFrame(sampleLoop);
+      onComplete();
+      return;
     }
 
-    runPointSequence();
-  };
+    const pt = points[index];
+    base(`
+      <div class="calib-stage">
+        <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
+          <div class="calib-center-dot"></div>
+          <div class="calib-ring"></div>
+        </div>
+      </div>
+    `);
+
+    const targetX = (pt.x / 100) * window.innerWidth;
+    const targetY = (pt.y / 100) * window.innerHeight;
+    const startTimePoint = performance.now();
+    const duration = 1200; // 1.2 שניות לכל נקודת כיול
+    const ignoreInitialMs = 250;
+
+    function sampleLoop() {
+      const elapsed = performance.now() - startTimePoint;
+
+      if (elapsed >= ignoreInitialMs && elapsed < duration) {
+        if (currentFeatures) {
+          calibDataX.push({ feat: [...currentFeatures], target: targetX });
+          calibDataY.push({ feat: [...currentFeatures], target: targetY });
+        }
+      }
+
+      if (elapsed < duration) {
+        requestAnimationFrame(sampleLoop);
+      } else {
+        index++;
+        runNextPoint();
+      }
+    }
+
+    requestAnimationFrame(sampleLoop);
+  }
+
+  runNextPoint();
 }
 
 function screen13(block){
-  base(`${picture('b_STM.jpg','slide')}<p>ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש "רווח" כדי להתחיל</p>`);
+  base(`
+    <div class="panel">
+      <h2>הוראות למשימת מעקב העיניים - חלק ${block}</h2>
+      <p style="font-size:22px; line-height:1.6; text-align:right;">
+        • לפני כל הצגה של 4 פרצופים, תופיע סדרה קצרה של <strong>5 נקודות כיול</strong>.<br>
+        • יש לעקוב במבט בלבד אחר הטבעת המצטמצמת בכל נקודה ולשמור על ראש יציב.<br>
+        • <strong>הנקודה החמישית והאחרונה תמיד תהיה במרכז המסך.</strong> מיד בסיומה יופיעו 4 הפרצופים, ללא שום השהייה או פלוס מרכזי נוסף.
+      </p>
+      <p style="font-size:20px; margin-top:30px;">ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש <strong>"רווח"</strong> כדי להתחיל.</p>
+    </div>
+  `);
   k(e=>{if(e.code==='Space')countdown(block===1?'main':'block2')});
 }
 
@@ -719,31 +709,30 @@ function mainStart(block){
     const faces=r.p.map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
     const tno=trialIndex;
 
-    base('<div class="fix">+</div>');
+    // טעינה מוקדמת של תמונות הצעד ברקע
     const loadPromise=preloadTrial(faces);
-    const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
-    Promise.all([loadPromise,timerPromise]).then(()=>{
-      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-      requestAnimationFrame(()=>{
-        const grid=document.querySelector('.trial-grid');
-        if(!grid)return;
-        grid.style.visibility='visible';
+
+    // ביצוע כיול 5 נקודות רגע לפני תצוגת 4 הפרצופים
+    run5PointCalibration(() => {
+      loadPromise.then(() => {
+        // הצגה ישירה של 4 הפרצופים (ללא פלוס מרכזי, כיוון שהנקודה ה-5 בכיול הייתה במרכז)
+        base(`<div class="trial-grid">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
         
         const t0=performance.now();
-        if(r.ffi)track(t0,sex,tno);
+        if(r.ffi) track(t0,sex,tno);
 
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
           setTimeout(()=>response([...faces,r.s,r.c],go),3000);
         },5000);
-      });
-    }).catch(err=>{console.error('Main trial preload failed',err);go();});
+      }).catch(err=>{console.error('Main trial preload failed',err);go();});
+    });
   };
   go();
 }
 
 // ==========================================
-// פונקציית המעקב המעודכנת
+// פונקציית המעקב
 // ==========================================
 function track(t0,sex,trial){
   const stopAt=t0+5000;
