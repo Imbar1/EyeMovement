@@ -28,7 +28,7 @@ body{overflow:hidden}
 .panel{max-width:900px;background:#0002;padding:24px;border-radius:14px}
 .consent-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:420px}
 .consent-form{width:min(920px,94vw);max-height:92vh;overflow-y:auto;text-align:right;line-height:1.55}
-.consent-form h2{text-align:center;margin-top:0}
+.consent-form h2{text-align:center;margin-top:0;color:#002060}
 .consent-form p{margin:10px 0}
 .consent-actions{text-align:center;margin-top:18px}
 .consent-actions .btn{display:block;margin:10px auto;min-width:310px}
@@ -44,7 +44,7 @@ h2{font-size:30px}
 .input{font-size:24px;padding:12px;text-align:center;direction:ltr}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:800px}
 .candidate{width:150px;height:150px;object-fit:cover;border:5px solid transparent;border-radius:8px;cursor:pointer}
-.candidate.sel{border-color:#00ff7f}
+.candidate.sel{border-color:#002060}
 .fix{font-family:Arial,sans-serif;font-size:128px;font-weight:400;line-height:.8;color:#fff;text-shadow:none;letter-spacing:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 .bottom-fix{position:absolute;left:0;right:0;bottom:7vh;top:auto;height:auto;display:block;text-align:center;font-family:Arial,sans-serif;font-size:128px;line-height:.8;color:#fff;font-weight:400} 
 .no-btn{background:#9b3f3f;color:#fff}
@@ -125,6 +125,8 @@ const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
 const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
 const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],cal1:0,cal2:0,calAcc1:0,calAcc2:0};
 const root=document.getElementById('app');
+
+let practiceErrors = 0; // מונה שגיאות לשלב האימון
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -357,7 +359,7 @@ async function preload(){
 function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
 function screen2(){base(`<div class="panel consent-choice"><h2>האם את/ה מרכיב/ה משקפיים?</h2><div><button class="btn" id="yes">כן</button><button class="btn no-btn" id="no">לא</button></div></div>`);document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));document.getElementById('no').addEventListener('click',consentScreen)}
-function consentScreen(){base(`<div class="panel consent-form"><h2>טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
+function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
 function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b">המשך</button>`);b.onclick=window[next]};
 function screen5(){instr('b_women_pics.jpg','screen6')}
 function screen7(){instr('b_men_pics.jpg','screen8')}
@@ -410,11 +412,16 @@ function response(row,done){
     clearTimeout(timeoutId);
     document.onkeydown=null;
     
-    S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:q===row[row.length-1]});
+    const isCorrect = q === row[row.length-1];
+    if (showFeedback && !isCorrect) {
+      practiceErrors++;
+    }
+
+    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:isCorrect});
     autoSavePartial();
 
     const finishAnswer=()=>{if(typeof done==='function')done()};
-    if(showFeedback){base(`<h2 style="color:${q===row[row.length-1]?'#00a83b':'#b32626'}">${q===row[row.length-1]?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
+    if(showFeedback){base(`<h2 style="color:${isCorrect?'#00a83b':'#b32626'}">${isCorrect?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
     else finishAnswer()
   };
   timeoutId=setTimeout(()=>{
@@ -422,7 +429,11 @@ function response(row,done){
     answered=true;
     document.onkeydown=null;
     
-    S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
+    if (showFeedback) {
+      practiceErrors++;
+    }
+
+    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
     autoSavePartial();
 
     if(showFeedback){base('<h2 style="color:#9b3f3f">לאט מידי</h2>');setTimeout(()=>{if(typeof done==='function')done()},700)}
@@ -433,6 +444,7 @@ function response(row,done){
 
 function practice(){
   showFeedback=true;
+  practiceErrors=0; // איפוס מונה השגיאות
   document.body.style.cursor = 'none';
   let i=0,finished=false;
   const go=()=>{
@@ -444,7 +456,19 @@ function practice(){
       showFeedback=false;
       document.onkeydown=null;
       document.body.style.cursor = 'default';
-      setTimeout(screenMovementInstructions,400)
+
+      if(practiceErrors >= 2){
+        base(`
+          <div class="panel">
+            <h2 style="color:#b32626">שלב האימון לא עבר בהצלחה</h2>
+            <p style="font-size: 22px; margin: 20px 0;">ביצעת ${practiceErrors} שגיאות בשלב האימון. יש לבצע את האימון שוב לפני המעבר לניסוי.</p>
+            <button class="btn" id="retryPrac">התחל אימון מחדש</button>
+          </div>
+        `);
+        document.getElementById('retryPrac').onclick = () => countdown('practice');
+      } else {
+        setTimeout(screenMovementInstructions,400);
+      }
     }
   };
   go()
@@ -633,7 +657,7 @@ function mainStart(block){
 }
 
 // ==========================================
-// פונקציית המעקב המעודכנת (כוללת דגימת מנורמלים ורביעים)
+// פונקציית המעקב (כוללת תיקון ציר Y בצד ימין)
 // ==========================================
 function track(t0,sex,trial){
   const stopAt=t0+5000;
@@ -645,15 +669,19 @@ function track(t0,sex,trial){
     let normX = null, normY = null, quadrant = null;
 
     if (gaze && gaze.x !== null && gaze.y !== null) {
-      // חישוב המיקום המנורמל במרחב ה-0 עד 1
       normX = gaze.x / window.innerWidth;
       normY = gaze.y / window.innerHeight;
 
-      // קביעת הרביע באופן מיידי
-      if (normX < 0.5 && normY < 0.5) quadrant = "TopLeft";       // Pos1
-      else if (normX >= 0.5 && normY < 0.5) quadrant = "TopRight";  // Pos2
-      else if (normX >= 0.5 && normY >= 0.5) quadrant = "BottomRight"; // Pos3
-      else if (normX < 0.5 && normY >= 0.5) quadrant = "BottomLeft";  // Pos4
+      // תיקון ההיפוך בצד ימין
+      let correctedNormY = normY;
+      if (normX >= 0.5) {
+        correctedNormY = 1 - normY;
+      }
+
+      if (normX < 0.5 && correctedNormY < 0.5) quadrant = "TopLeft";       // Pos1
+      else if (normX >= 0.5 && correctedNormY < 0.5) quadrant = "TopRight";  // Pos2
+      else if (normX >= 0.5 && correctedNormY >= 0.5) quadrant = "BottomRight"; // Pos3
+      else if (normX < 0.5 && correctedNormY >= 0.5) quadrant = "BottomLeft";  // Pos4
     }
 
     S.raw.push({
