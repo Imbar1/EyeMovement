@@ -3,180 +3,107 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ניסוי זיכרון קצר־טווח ומעקב עיניים</title>
+<title>בדיקת דיאגנוסטיקה - מעקב עיניים</title>
 
-<!-- JSPsych -->
-<script src="https://unpkg.com/jspsych@8.2.1"></script>
-
-<!-- MediaPipe Camera Utils, Face Mesh & Drawing Utils -->
+<!-- MediaPipe Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 
-<!-- Firebase SDKs (Compat CDN) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;background:#808080;color:#fff;font-family:Calibri,Arial,sans-serif}
-button,input,textarea,select{font-family:Calibri,Arial,sans-serif}
-body{overflow:hidden}
-.app{position:relative;width:100vw;height:100vh}
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2vh 4vw}
+html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family:Arial,sans-serif;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
 .hidden{display:none!important}
-.panel{max-width:900px;background:#0002;padding:24px;border-radius:14px}
-.consent-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:420px}
-.consent-form{width:min(920px,94vw);max-height:92vh;overflow-y:auto;text-align:right;line-height:1.55}
-.consent-form h2{text-align:center;margin-top:0;color:#002060}
-.consent-form p{margin:10px 0}
-.consent-actions{text-align:center;margin-top:18px}
-.consent-actions .btn{display:block;margin:10px auto;min-width:310px}
-h1{font-size:34px}
-h2{font-size:30px}
-.logo{position:absolute;top:3vh;left:20vw;width:60vw;height:17vh;object-fit:contain}
-.slide,.wide{width:70vw;height:58vh;object-fit:contain}
-.keyboard-nav{display:block;width:min(32vw,360px);height:auto;max-height:14vh;object-fit:contain;margin:8px auto 14px}
-.nav{position:absolute;bottom:5vh;left:15vw;width:15vw;height:6vh;object-fit:contain;cursor:pointer}
-.btn{font-size:22px;color:#fff;background:#4f8f52;border:0;border-radius:8px;padding:12px 28px;cursor:pointer;margin:8px;box-shadow:0 2px 5px #0005}
-.btn:hover{background:#5da660}
-.btn:disabled{background:#777;color:#ddd;cursor:not-allowed}
-.input{font-size:24px;padding:12px;text-align:center;direction:ltr}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:800px}
-.candidate{width:150px;height:150px;object-fit:cover;border:5px solid transparent;border-radius:8px;cursor:pointer}
-.candidate.sel{border-color:#002060}
-.fix{font-family:Arial,sans-serif;font-size:128px;font-weight:400;line-height:.8;color:#fff;text-shadow:none;letter-spacing:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.bottom-fix{position:absolute;left:0;right:0;bottom:7vh;top:auto;height:auto;display:block;text-align:center;font-family:Arial,sans-serif;font-size:128px;line-height:.8;color:#fff;font-weight:400} 
-.no-btn{background:#9b3f3f;color:#fff}
-.no-btn:hover{background:#ad4b4b}
-.count{font-size:110px}
+.panel{background:#333;padding:30px;border-radius:12px;max-width:600px;width:90%;box-shadow:0 4px 15px rgba(0,0,0,0.5)}
+.btn{font-size:20px;color:#fff;background:#28a745;border:0;border-radius:6px;padding:12px 24px;cursor:pointer;margin-top:15px}
+.btn:hover{background:#218838}
+.input{font-size:22px;padding:10px;text-align:center;margin:15px 0;width:200px;border-radius:6px;border:1px solid #ccc}
 
-.trial-grid{position:absolute;inset:0}
+/* חלון מצלמה */
+.camera-popup{position:fixed;top:20px;left:20px;z-index:9999;background:#111;padding:8px;border-radius:8px;text-align:center;border:4px solid #d33}
+.camera-popup.good{border-color:#28a745}
+.cam-wrapper{position:relative;width:200px;height:140px;overflow:hidden;border-radius:4px}
+.cam-wrapper video{width:200px;height:140px;object-fit:cover;transform:scaleX(-1)}
+.cam-wrapper canvas{position:absolute;top:0;left:0;width:200px;height:140px;transform:scaleX(-1)}
 
-.pos{position:absolute;width:32vw;height:32vh;object-fit:contain}
-.p1{left:5vw;top:8vh}
-.p2{left:63vw;top:8vh}
-.p3{left:63vw;top:60vh}
-.p4{left:5vw;top:60vh}
-.center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
-.question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
-
-.keys{position:absolute;bottom:5vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;color:#063b88;direction:ltr}
-.keys .yes{position:absolute;right:8vw;white-space:nowrap}
-.keys .no{position:absolute;left:8vw;white-space:nowrap}
-
-.camera-popup{position:fixed;top:14px;left:14px;z-index:9999;background:#111c;padding:6px;border-radius:8px;display:none;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
-.camera-popup.show{display:block}
-.cam-wrapper{position:relative;width:180px;height:120px;border-radius:4px;overflow:hidden}
-.cam-wrapper video{width:180px;height:120px;object-fit:cover;transform:scaleX(-1)}
-.cam-wrapper canvas{position:absolute;top:0;left:0;width:180px;height:120px;transform:scaleX(-1);pointer-events:none}
-.camera-label{font-size:13px;color:#fff;margin-bottom:4px;font-weight:bold}
-.camera-status-text{font-size:12px;color:#fff;margin-top:4px;font-weight:bold}
-.camera-popup.good{border:4px solid #35d36b}
-.camera-popup.bad{border:4px solid #d33}
-
+/* כיול */
 .calibration{position:absolute;inset:0}
-.calpoint{position:absolute;width:58px;height:58px;background:#fff;border:5px solid #222;border-radius:0;transform:translate(-50%,-50%);cursor:pointer;color:#222;font:700 24px Calibri,Arial,sans-serif;display:flex;align-items:center;justify-content:center}
-.calpoint.done{background:#35d36b}
-.status{min-height:30px;color:#ffe66d}
-.selection-error{color:#9b3f3f;font-size:26px;font-weight:bold;min-height:34px}
-.rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
+.calpoint{position:absolute;width:50px;height:50px;background:#fff;border:4px solid #000;border-radius:50%;transform:translate(-50%,-50%);cursor:pointer;color:#000;font-weight:bold;font-size:20px;display:flex;align-items:center;justify-content:center}
+.calpoint.done{background:#28a745;color:#fff}
 
-.rating-instruction-text{font-size:28px;margin:20px 0;font-weight:bold}
-.rating-labels{display:flex;justify-content:space-between;width:80%;max-width:800px;margin:10px auto;font-size:24px;font-weight:bold}
-.scale{direction:ltr;margin-top:20px;display:flex;justify-content:center;gap:15px}
-.scale button{font-size:26px;width:55px;height:55px;background:#f0f0f0;color:#333;border:2px solid #ccc;border-radius:8px;cursor:pointer;transition:all 0.2s ease}
-.scale button:hover{background:#98fb98;border-color:#32cd32}
+/* אינדיקטור דיאגנוסטיקה */
+.indicator-box{width:280px;height:280px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.8);transition:background-color 0.15s ease;border:4px solid #fff}
+.bg-blue{background-color:#0055ff !important}  /* Top-Left */
+.bg-red{background-color:#ff2222 !important}   /* Top-Right */
+.bg-green{background-color:#00cc44 !important} /* Bottom-Right */
+.bg-yellow{background-color:#ffcc00 !important; color:#000 !important; text-shadow:none !important} /* Bottom-Left */
+.bg-none{background-color:#555 !important}
+
+.debug-info{margin-top:20px;font-family:monospace;font-size:18px;background:rgba(0,0,0,0.6);padding:15px;border-radius:8px;text-align:right;direction:ltr;line-height:1.5}
 </style>
 </head>
 <body>
-<main id="app" class="app"></main>
 
-<div id="cameraPopup" class="camera-popup bad">
-  <div class="camera-label">מיקום פנים</div>
+<!-- מסך 1: הזנת תעודת זהות / מספר משתתף -->
+<section id="screen1" class="screen">
+  <div class="panel">
+    <h1>בדיקת כיול ודיאגנוסטיקה</h1>
+    <p>נא להזין מספר משתתף כדי להתחיל:</p>
+    <input id="participantId" class="input" type="text" placeholder="1234">
+    <br>
+    <button class="btn" onclick="startApp()">המשך</button>
+  </div>
+</section>
+
+<!-- מסך 2: בדיקת מיקום פנים -->
+<section id="screenCamera" class="screen hidden">
+  <div class="panel">
+    <h2>אימות מיקום פנים</h2>
+    <p>וודא/י שהפנים ממורכזות בחלון המצלמה בפינה השמאלית העליונה.</p>
+    <p>כאשר המסגרת הופכת לירוקה, לחץ/י על הכפתור כדי לעבור לכיול.</p>
+    <button class="btn" onclick="goToCalibration()">המשך לכיול</button>
+  </div>
+</section>
+
+<!-- מסך 3: כיול -->
+<section id="screenCalib" class="screen hidden"></section>
+
+<!-- מסך 4: דיאגנוסטיקה ובדיקת אינדיקטור -->
+<section id="screenDiag" class="screen hidden">
+  <div id="indicator" class="indicator-box bg-none">
+    <span id="quadrantText">ממתין הטיות...</span>
+  </div>
+
+  <div class="debug-info">
+    <div><strong>Participant:</strong> <span id="dbgPart">-</span></div>
+    <div><strong>normX:</strong> <span id="dbgNormX">0.0000</span></div>
+    <div><strong>normY:</strong> <span id="dbgNormY">0.0000</span></div>
+    <div><strong>gazeX:</strong> <span id="dbgGazeX">0</span> px</div>
+    <div><strong>gazeY:</strong> <span id="dbgGazeY">0</span> px</div>
+    <div><strong>Quadrant:</strong> <span id="dbgQuad">None</span></div>
+    <div><strong>Frames Logged:</strong> <span id="dbgCount">0</span></div>
+  </div>
+
+  <button class="btn" onclick="downloadCSV()" style="margin-top:20px;background:#17a2b8">הורד קובץ נתונים (CSV)</button>
+</section>
+
+<!-- חלון וידאו צף -->
+<div id="cameraPopup" class="camera-popup hidden">
   <div class="cam-wrapper">
     <video id="webcamVideo" autoplay playsinline muted></video>
-    <canvas id="meshCanvas" width="180" height="120"></canvas>
+    <canvas id="meshCanvas" width="200" height="140"></canvas>
   </div>
-  <div id="cameraStatusText" class="camera-status-text">מאתר פנים…</div>
+  <div id="cameraStatusText" style="font-size:12px;margin-top:4px">מאתר פנים...</div>
 </div>
 
 <script>
-// ==========================================
-// Firebase Initialization
-// ==========================================
-const firebaseConfig = {
-  apiKey: "AIzaSyATnU0sw0n1cXNLEWI13m99WccZd1II0GE",
-  authDomain: "eyemovementexp.firebaseapp.com",
-  projectId: "eyemovementexp",
-  storageBucket: "eyemovementexp.firebasestorage.app",
-  messagingSenderId: "286816318134",
-  appId: "1:286816318134:web:674736a9f0685c62e9ec17",
-  measurementId: "G-VZXF88SGR5"
-};
+let participant = "";
+let frameLogs = [];
+let startTime = 0;
+let isTracking = false;
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// ==========================================
-// Variables & Data Structures
-// ==========================================
-const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
-const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
-const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],cal1:0,cal2:0,calAcc1:0,calAcc2:0};
-const root=document.getElementById('app');
-
-let practiceErrors = 0; // מונה שגיאות לשלב האימון
-
-const imageCache=new Map();
-function loadImageCached(name){
-  const key=String(name).split('/').pop();
-  if(imageCache.has(key)) return imageCache.get(key);
-  const p=new Promise(resolve=>{
-    const im=new Image();
-    im.decoding='async';
-    im.onload=async()=>{try{if(im.decode) await im.decode()}catch(e){} resolve(im)};
-    im.onerror=()=>{console.warn('Asset failed to load:',key);resolve(null)};
-    im.src=assetUrl(key);
-  });
-  imageCache.set(key,p);
-  return p;
-}
-function preloadTrial(names){return Promise.all(names.map(loadImageCached))}
-const enc=n=>A+encodeURIComponent(n);
-const assetUrl=n=>enc(n);
-const picture=(n,c='')=>`<img class="${c}" src="${assetUrl(n)}" alt="${n}" loading="eager">`;
-function base(h){root.innerHTML=`<section class="screen">${h}</section>`}
-function k(fn){document.onkeydown=e=>fn(e)}
-
-function enterFullscreen() {
-  const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-  } else if (elem.mozRequestFullScreen) {
-    elem.mozRequestFullScreen();
-  } else if (elem.webkitRequestFullscreen) {
-    elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) {
-    elem.msRequestFullscreen();
-  }
-}
-
-function autoSavePartial() {
-  if(!S.id) return;
-  localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
-  
-  db.collection("participants_partial").doc(String(S.id)).set({
-    trials_completed: S.trials.length,
-    raw_gaze_count: S.raw.length,
-    trials_data: S.trials,
-    last_update: new Date().toISOString()
-  }, {merge: true}).catch(() => {});
-}
-
-// ==========================================
-// MediaPipe Face Mesh & Custom Regression Model
-// ==========================================
+// MediaPipe variables
 let faceMesh = null;
 let cameraUtils = null;
 let currentFeatures = null;
@@ -185,18 +112,14 @@ let calibDataY = [];
 let weightsX = null;
 let weightsY = null;
 
-let goodStateStartTime = 0;
-let isAligned = false;
-
+// Matrix Linear Regression
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
   let XTX = Array.from({length: K}, () => new Array(K).fill(0));
   for(let i=0; i<K; i++) {
     for(let j=0; j<K; j++) {
-      for(let n=0; n<N; n++) {
-        XTX[i][j] += X[n][i] * X[n][j];
-      }
+      for(let n=0; n<N; n++) XTX[i][j] += X[n][i] * X[n][j];
     }
   }
   for(let i=0; i<K; i++) XTX[i][i] += 1e-4;
@@ -207,33 +130,23 @@ function solveLinearRegression(X, Y) {
   for(let i=0; i<K; i++) {
     let pivot = M[i][i];
     if(Math.abs(pivot) < 1e-9) pivot = 1e-9;
-    for(let j=0; j<K; j++) {
-      M[i][j] /= pivot;
-      I[i][j] /= pivot;
-    }
+    for(let j=0; j<K; j++) { M[i][j] /= pivot; I[i][j] /= pivot; }
     for(let k=0; k<K; k++) {
       if(k !== i) {
         let factor = M[k][i];
-        for(let j=0; j<K; j++) {
-          M[k][j] -= factor * M[i][j];
-          I[k][j] -= factor * I[i][j];
-        }
+        for(let j=0; j<K; j++) { M[k][j] -= factor * M[i][j]; I[k][j] -= factor * I[i][j]; }
       }
     }
   }
   let invXT = Array.from({length: K}, () => new Array(N).fill(0));
   for(let i=0; i<K; i++) {
     for(let n=0; n<N; n++) {
-      for(let j=0; j<K; j++) {
-        invXT[i][n] += I[i][j] * X[n][j];
-      }
+      for(let j=0; j<K; j++) invXT[i][n] += I[i][j] * X[n][j];
     }
   }
   let W = new Array(K).fill(0);
   for(let i=0; i<K; i++) {
-    for(let n=0; n<N; n++) {
-      W[i] += invXT[i][n] * Y[n];
-    }
+    for(let n=0; n<N; n++) W[i] += invXT[i][n] * Y[n];
   }
   return W;
 }
@@ -248,9 +161,20 @@ function predictGaze() {
   return {x, y};
 }
 
-function initFaceMeshSystem() {
-  if(faceMesh) return Promise.resolve(true);
+function startApp() {
+  const input = document.getElementById('participantId').value.trim();
+  if(!input) { alert("נא להזין מספר משתתף"); return; }
+  participant = input;
+  document.getElementById('dbgPart').textContent = participant;
 
+  document.getElementById('screen1').classList.add('hidden');
+  document.getElementById('screenCamera').classList.remove('hidden');
+  document.getElementById('cameraPopup').classList.remove('hidden');
+
+  initCamera();
+}
+
+function initCamera() {
   const video = document.getElementById('webcamVideo');
   const canvas = document.getElementById('meshCanvas');
   const ctx = canvas.getContext('2d');
@@ -270,244 +194,41 @@ function initFaceMeshSystem() {
 
   faceMesh.onResults(results => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const lm = results.multiFaceLandmarks[0];
-      
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
-
-      ctx.fillStyle = '#00FFFF';
-      for(let i=0; i<lm.length; i+=20) {
-        ctx.beginPath();
-        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.2, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = '#11cf3d';
-      [468, 473].forEach(i => {
-        ctx.beginPath();
-        ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.8, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-
       const lIris = lm[468], rIris = lm[473], nose = lm[1];
       currentFeatures = [1, lIris.x, lIris.y, rIris.x, rIris.y, nose.x, nose.y];
 
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
-
       if (centered) {
-        isAligned = true;
-        popup.classList.remove('bad');
         popup.classList.add('good');
-        statusTxt.textContent = 'הפנים זוהו';
-
-        if (!goodStateStartTime) goodStateStartTime = performance.now();
-        if (performance.now() - goodStateStartTime >= 200) {
-          popup.classList.remove('show');
-        }
+        statusTxt.textContent = "פנים במרכז";
       } else {
-        isAligned = false;
-        goodStateStartTime = 0;
         popup.classList.remove('good');
-        popup.classList.add('bad', 'show');
-        statusTxt.textContent = 'חריגה מהמסגרת';
+        statusTxt.textContent = "יש למרכז פנים";
       }
     } else {
       currentFeatures = null;
-      isAligned = false;
-      goodStateStartTime = 0;
       popup.classList.remove('good');
-      popup.classList.add('bad', 'show');
-      statusTxt.textContent = 'פנים לא זוהו';
+      statusTxt.textContent = "לא מזוהה";
     }
   });
 
   cameraUtils = new Camera(video, {
-    onFrame: async () => {
-      await faceMesh.send({image: video});
-    },
+    onFrame: async () => { await faceMesh.send({image: video}); },
     width: 320,
     height: 240
   });
-
-  return cameraUtils.start().then(() => {
-    popup.classList.add('show');
-    return true;
-  });
+  cameraUtils.start();
 }
 
-// ==========================================
-// Flow & Screens
-// ==========================================
-async function preload(){
-  base(`<div class="panel"><h1>נא להמתין בזמן שכל חומרי הניסוי נטענים</h1><p>אנא המתן/י עד לסיום הטעינה. אין לסגור את החלון.</p><progress id="pr" max="${assets.length}" value="0"></progress><p id="pc">0%</p></div>`);
-  const progress=document.getElementById('pr');
-  const percent=document.getElementById('pc');
-  let completed=0;
-  await Promise.all(assets.map(async name=>{
-    await loadImageCached(name);
-    completed++;
-    progress.value=completed;
-    percent.textContent=Math.round(completed/assets.length*100)+'%';
-  }));
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-  screen1();
-}
+function goToCalibration() {
+  document.getElementById('screenCamera').classList.add('hidden');
+  document.getElementById('screenCalib').classList.remove('hidden');
 
-function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
-function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
-function screen2(){base(`<div class="panel consent-choice"><h2>האם את/ה מרכיב/ה משקפיים?</h2><div><button class="btn" id="yes">כן</button><button class="btn no-btn" id="no">לא</button></div></div>`);document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));document.getElementById('no').addEventListener('click',consentScreen)}
-function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
-function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b">המשך</button>`);b.onclick=window[next]};
-function screen5(){instr('b_women_pics.jpg','screen6')}
-function screen7(){instr('b_men_pics.jpg','screen8')}
-
-function choose(g){const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);ns.forEach((_,i)=>document.getElementById('c'+i).onclick=()=>{const x=document.getElementById('c'+i);if(x.classList.contains('sel'))x.classList.remove('sel');else if(document.querySelectorAll('.sel').length<2)x.classList.add('sel');m.textContent='נבחרו: '+document.querySelectorAll('.sel').length+' מתוך 2'});b.onclick=()=>{const a=[...document.querySelectorAll('.sel')].map(x=>decodeURIComponent(x.src.split('/').pop()));if(a.length!==2){m.textContent='יש לבחור בדיוק שני פרצופים';return}S[g==='F'?'female':'male']=a;g==='F'?screen7():screen9()}}
-function screen6(){choose('F')}
-function screen8(){choose('M')}
-let sl=1;
-function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;countdown('practice')}}})}
-
-function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);const t=setInterval(()=>{n--;if(n<1){clearInterval(t);type==='practice'?practice():mainStart(type==='block2'?2:1)}else ct.textContent=n},1000)}
-
-let showFeedback=false;
-const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
-
-function trial(row,done){
-  const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-  base('<div class="fix">+</div>');
-  const loadPromise=preloadTrial(faces);
-  const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
-  Promise.all([loadPromise,timerPromise]).then(()=>{
-    base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
-    requestAnimationFrame(()=>{
-      const grid=document.querySelector('.trial-grid');
-      if(!grid)return;
-      grid.style.visibility='visible';
-
-      setTimeout(()=>{
-        base('<div class="bottom-fix">+</div>');
-        setTimeout(()=>response(row,done),3000);
-      },5000);
-    });
-  }).catch(err=>{console.error('Trial preload failed',err);if(typeof done==='function')done();});
-}
-
-function response(row,done){
-  const singleName=String(row[4]).endsWith('.webp')?String(row[4]):String(row[4])+'.webp';
-  base(`${picture(singleName,'center')}<div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div><div class="keys"><span class="yes">I = כן</span><span class="no">E = לא</span></div>`);
-  const t=performance.now();
-  let answered=false;
-  let timeoutId=null;
-  document.onkeydown=null;
-  document.onkeydown=e=>{
-    const key=String(e.key||'').toLowerCase();
-    const q=e.code==='KeyI'||key==='i'||key==='ך'?'i':e.code==='KeyE'||key==='e'||key==='ק'?'e':'';
-    if(!q||answered)return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    answered=true;
-    clearTimeout(timeoutId);
-    document.onkeydown=null;
-    
-    const isCorrect = q === row[row.length-1];
-    if (showFeedback && !isCorrect) {
-      practiceErrors++;
-    }
-
-    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:isCorrect});
-    autoSavePartial();
-
-    const finishAnswer=()=>{if(typeof done==='function')done()};
-    if(showFeedback){base(`<h2 style="color:${isCorrect?'#00a83b':'#b32626'}">${isCorrect?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
-    else finishAnswer()
-  };
-  timeoutId=setTimeout(()=>{
-    if(answered)return;
-    answered=true;
-    document.onkeydown=null;
-    
-    if (showFeedback) {
-      practiceErrors++;
-    }
-
-    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
-    autoSavePartial();
-
-    if(showFeedback){base('<h2 style="color:#9b3f3f">לאט מידי</h2>');setTimeout(()=>{if(typeof done==='function')done()},700)}
-    else if(typeof done==='function')done()
-  },2000);
-  window.focus();
-}
-
-function practice(){
-  showFeedback=true;
-  practiceErrors=0; // איפוס מונה השגיאות
-  document.body.style.cursor = 'none';
-  let i=0,finished=false;
-  const go=()=>{
-    if(finished)return;
-    if(i<prac.length){
-      trial(prac[i++],go)
-    }else{
-      finished=true;
-      showFeedback=false;
-      document.onkeydown=null;
-      document.body.style.cursor = 'default';
-
-      if(practiceErrors >= 2){
-        base(`
-          <div class="panel">
-            <h2 style="color:#b32626">שלב האימון לא עבר בהצלחה</h2>
-            <p style="font-size: 22px; margin: 20px 0;">ביצעת ${practiceErrors} שגיאות בשלב האימון. יש לבצע את האימון שוב לפני המעבר לניסוי.</p>
-            <button class="btn" id="retryPrac">התחל אימון מחדש</button>
-          </div>
-        `);
-        document.getElementById('retryPrac').onclick = () => countdown('practice');
-      } else {
-        setTimeout(screenMovementInstructions,400);
-      }
-    }
-  };
-  go()
-}
-
-function screenMovementInstructions(){
-  base(`${picture('EM_instructions.jpg','slide')}<button class="btn" id="movementContinue">המשך</button>`);
-  document.getElementById('movementContinue').addEventListener('click',()=>screen12(1));
-}
-
-function screen12(block=1){
-  base('<div class="panel"><h2>מכינים את המצלמה למעקב עיניים</h2><p>נא לאשר גישה למצלמה ולהישאר מול המסך.</p><p id="wgStatus">מפעילים את מודל הפנים...</p></div>');
-  initFaceMeshSystem().then(()=>{
-    document.getElementById('wgStatus')?.remove();
-    screenFaceSetup(block);
-  }).catch(e=>{
-    base(`<div class="panel"><h2>לא ניתן להפעיל את המצלמה</h2><p>יש לאפשר גישה למצלמה בדפדפן.</p><p class="status">${e.message||''}</p></div>`);
-  });
-}
-
-function screenFaceSetup(block){
-  base(`
-    <div class="panel">
-      <h2>אימות מיקום הפנים - חלק ${block}</h2>
-      <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
-      <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך לכיול".</p>
-      <button class="btn" id="goCalBtn">המשך לכיול</button>
-    </div>
-  `);
-  document.getElementById('goCalBtn').onclick = () => {
-    if (!document.fullscreenElement) {
-      enterFullscreen();
-    }
-    calibrate(block);
-  }
-}
-
-function calibrate(block){
-  let attempts = 1;
   const points = [
     {x:10,y:10},{x:50,y:10},{x:90,y:10},
     {x:10,y:50},{x:50,y:50},{x:90,y:50},
@@ -516,287 +237,138 @@ function calibrate(block){
 
   calibDataX = [];
   calibDataY = [];
+  let index = 0;
 
-  const instruction = () => {
-    base('<div class="panel"><h2>הוראות כיול</h2><p>הסתכל/י על הריבוע הלבן ולחץ/י עליו 5 פעמים. יש לשמור על הראש יציב</p><button class="btn" id="startCal">התחל כיול</button></div>');
-    document.getElementById('startCal').onclick = run;
-  };
+  function renderPoint() {
+    if(index >= points.length) {
+      // חישוב הרגרסיה
+      const X = calibDataX.map(d => d.feat);
+      const Yx = calibDataX.map(d => d.target);
+      const Yy = calibDataY.map(d => d.target);
+      weightsX = solveLinearRegression(X, Yx);
+      weightsY = solveLinearRegression(X, Yy);
 
-  const run = () => {
-    let index = 0;
-    const next = () => {
-      if(index >= points.length){
-        if(calibDataX.length >= 10) {
-          const X = calibDataX.map(d => d.feat);
-          const Yx = calibDataX.map(d => d.target);
-          const Yy = calibDataY.map(d => d.target);
-          weightsX = solveLinearRegression(X, Yx);
-          weightsY = solveLinearRegression(X, Yy);
-        }
-        if(block === 1){ S.cal1 = attempts; S.calAcc1 = 100; }
-        else { S.cal2 = attempts; S.calAcc2 = 100; }
-        screen13(block);
-        return;
-      }
-      const q = points[index];
-      base(`<div class="calibration"><button type="button" class="calpoint" id="target" aria-label="נקודת כיול" style="left:${q.x}%;top:${q.y}%"></button></div>`);
-      const target = document.getElementById('target');
-      let clicks = 0, locked = false;
-
-      target.addEventListener('click', event => {
-        if(locked) return;
-        event.preventDefault();
-        
-        if(currentFeatures) {
-          const targetX = (q.x / 100) * window.innerWidth;
-          const targetY = (q.y / 100) * window.innerHeight;
-          calibDataX.push({ feat: [...currentFeatures], target: targetX });
-          calibDataY.push({ feat: [...currentFeatures], target: targetY });
-        }
-
-        clicks++;
-        target.textContent = clicks;
-        if(clicks >= 5){
-          locked = true;
-          target.classList.add('done');
-          setTimeout(()=>{ index++; next(); }, 300);
-        }
-      }, {passive:false});
-    };
-    next();
-  };
-  instruction();
-}
-
-function screen13(block){
-  base(`${picture('b_STM.jpg','slide')}<p>ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש "רווח" כדי להתחיל</p>`);
-  k(e=>{if(e.code==='Space')countdown(block===1?'main':'block2')});
-}
-
-function mainStart(block){
-  showFeedback=false;
-  document.body.style.cursor = 'none';
-  
-  const sex=block===1?(Math.random()<.5?'F':'M'):(S.lastSex==='F'?'M':'F');
-  S.lastSex=sex;
-  const familiar=(sex==='F'?S.female:S.male).map(x=>String(x).split('/').pop());
-  const f1=familiar[0]||`${sex}1.webp`,f2=familiar[1]||`${sex}2.webp`;
-  
-  const rows=sex==='F'?[
-    {ffi:1,p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'],s:'UNf6.webp',c:'e'},
-    {ffi:1,p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'],s:f1,c:'i'},
-    {ffi:1,p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'],s:'UNf5.webp',c:'e'},
-    {ffi:1,p:['UNf7.webp','UNf8.webp','UNf3.webp',f1],s:'UNf3.webp',c:'i'},
-    {ffi:1,p:[f2,'UNf10.webp','UNf9.webp','UNf7.webp'],s:'UNf4.webp',c:'e'},
-    {ffi:1,p:['UNf8.webp',f2,'UNf4.webp','UNf12.webp'],s:f2,c:'i'},
-    {ffi:1,p:['UNf3.webp','UNf6.webp',f2,'UNf13.webp'],s:'UNf2.webp',c:'e'},
-    {ffi:1,p:['UNf11.webp','UNf2.webp','UNf1.webp',f2],s:'UNf1.webp',c:'i'},
-    {ffi:0,p:['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'],s:'UNf3.webp',c:'e'},
-    {ffi:0,p:['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'],s:'UNf6.webp',c:'i'},
-    {ffi:0,p:['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'],s:'UNf1.webp',c:'e'},
-    {ffi:0,p:['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'],s:'UNf5.webp',c:'i'},
-    {ffi:0,p:['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'],s:f1,c:'e'},
-    {ffi:0,p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'],s:'UNf4.webp',c:'i'},
-    {ffi:0,p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'],s:f2,c:'e'},
-    {ffi:0,p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'],s:'UNf2.webp',c:'i'}
-  ].sort(()=>Math.random()-.5):[
-    {ffi:1,p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'],s:'UNm6.webp',c:'e'},
-    {ffi:1,p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'],s:f1,c:'i'},
-    {ffi:1,p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'],s:'UNm5.webp',c:'e'},
-    {ffi:1,p:['UNm7.webp','UNm8.webp','UNm3.webp',f1],s:'UNm3.webp',c:'i'},
-    {ffi:1,p:[f2,'UNm10.webp','UNm9.webp','UNm7.webp'],s:'UNm4.webp',c:'e'},
-    {ffi:1,p:['UNm8.webp',f2,'UNm4.webp','UNm12.webp'],s:f2,c:'i'},
-    {ffi:1,p:['UNm3.webp','UNm6.webp',f2,'UNm13.webp'],s:'UNm2.webp',c:'e'},
-    {ffi:1,p:['UNm11.webp','UNm2.webp','UNm1.webp',f2],s:'UNm1.webp',c:'i'},
-    {ffi:0,p:['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'],s:'UNm3.webp',c:'e'},
-    {ffi:0,p:['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'],s:'UNm6.webp',c:'i'},
-    {ffi:0,p:['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'],s:'UNm1.webp',c:'e'},
-    {ffi:0,p:['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'],s:'UNm5.webp',c:'i'},
-    {ffi:0,p:['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'],s:f1,c:'e'},
-    {ffi:0,p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'],s:'UNm4.webp',c:'i'},
-    {ffi:0,p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'],s:f2,c:'e'},
-    {ffi:0,p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'],s:'UNm2.webp',c:'i'}
-  ].sort(()=>Math.random()-.5);
-
-  let trialIndex=0;
-  const go=()=>{
-    if(trialIndex>=rows.length){
-      document.body.style.cursor = 'default';
-      if(block === 1) {
-        screenFaceSetup(2); 
-      } else {
-        screen16();
-      }
+      startDiagnostics();
       return;
     }
-    const r=rows[trialIndex++];
-    const faces=r.p.map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-    const tno=trialIndex;
 
-    base('<div class="fix">+</div>');
-    const loadPromise=preloadTrial(faces);
-    const timerPromise=new Promise(resolve=>setTimeout(resolve,5000));
-    Promise.all([loadPromise,timerPromise]).then(()=>{
-      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-      requestAnimationFrame(()=>{
-        const grid=document.querySelector('.trial-grid');
-        if(!grid)return;
-        grid.style.visibility='visible';
-        
-        const t0=performance.now();
-        if(r.ffi)track(t0,sex,tno);
+    const pt = points[index];
+    const screenCalib = document.getElementById('screenCalib');
+    screenCalib.innerHTML = `
+      <div class="calibration">
+        <button id="calBtn" class="calpoint" style="left:${pt.x}%;top:${pt.y}%">0</button>
+      </div>
+    `;
 
-        setTimeout(()=>{
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response([...faces,r.s,r.c],go),3000);
-        },5000);
-      });
-    }).catch(err=>{console.error('Main trial preload failed',err);go();});
-  };
-  go();
-}
-
-// ==========================================
-// פונקציית המעקב (כוללת תיקון ציר Y בצד ימין)
-// ==========================================
-function track(t0,sex,trial){
-  const stopAt=t0+5000;
-  const f=()=>{
-    const now=performance.now();
-    if(now>=stopAt)return;
-    
-    const gaze = predictGaze();
-    let normX = null, normY = null, quadrant = null;
-
-    if (gaze && gaze.x !== null && gaze.y !== null) {
-      normX = gaze.x / window.innerWidth;
-      normY = gaze.y / window.innerHeight;
-
-      // תיקון ההיפוך בצד ימין
-      let correctedNormY = normY;
-      if (normX >= 0.5) {
-        correctedNormY = 1 - normY;
+    let clicks = 0;
+    const btn = document.getElementById('calBtn');
+    btn.onclick = () => {
+      if(currentFeatures) {
+        const targetX = (pt.x / 100) * window.innerWidth;
+        const targetY = (pt.y / 100) * window.innerHeight;
+        calibDataX.push({ feat: [...currentFeatures], target: targetX });
+        calibDataY.push({ feat: [...currentFeatures], target: targetY });
       }
+      clicks++;
+      btn.textContent = clicks;
+      if(clicks >= 5) {
+        btn.classList.add('done');
+        setTimeout(() => { index++; renderPoint(); }, 200);
+      }
+    };
+  }
 
-      if (normX < 0.5 && correctedNormY < 0.5) quadrant = "TopLeft";       // Pos1
-      else if (normX >= 0.5 && correctedNormY < 0.5) quadrant = "TopRight";  // Pos2
-      else if (normX >= 0.5 && correctedNormY >= 0.5) quadrant = "BottomRight"; // Pos3
-      else if (normX < 0.5 && correctedNormY >= 0.5) quadrant = "BottomLeft";  // Pos4
+  renderPoint();
+}
+
+function startDiagnostics() {
+  document.getElementById('screenCalib').classList.add('hidden');
+  document.getElementById('screenDiag').classList.remove('hidden');
+
+  startTime = performance.now();
+  isTracking = true;
+  requestAnimationFrame(diagnosticLoop);
+}
+
+function diagnosticLoop() {
+  if(!isTracking) return;
+
+  const now = performance.now();
+  const gaze = predictGaze();
+
+  let normX = null;
+  let normY = null;
+  let quadrant = "None";
+  let colorClass = "bg-none";
+
+  if (gaze && gaze.x !== null && gaze.y !== null) {
+    normX = gaze.x / window.innerWidth;
+    normY = gaze.y / window.innerHeight;
+
+    // חישוב הרביע לפי ערכי X ו-Y גולמיים מהכיול
+    if (normX < 0.5 && normY < 0.5) {
+      quadrant = "TopLeft";
+      colorClass = "bg-blue";
+    } else if (normX >= 0.5 && normY < 0.5) {
+      quadrant = "TopRight";
+      colorClass = "bg-red";
+    } else if (normX >= 0.5 && normY >= 0.5) {
+      quadrant = "BottomRight";
+      colorClass = "bg-green";
+    } else if (normX < 0.5 && normY >= 0.5) {
+      quadrant = "BottomLeft";
+      colorClass = "bg-yellow";
     }
-
-    S.raw.push({
-      participant: S.id,
-      block: sex,
-      trial: trial,
-      timestamp: now - t0,
-      gazeX: gaze?.x ?? null,
-      gazeY: gaze?.y ?? null,
-      normX: normX !== null ? Number(normX.toFixed(4)) : null,
-      normY: normY !== null ? Number(normY.toFixed(4)) : null,
-      quadrant: quadrant,
-      screenWidth: window.innerWidth,
-      screenHeight: window.innerHeight,
-      phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
-    });
-
-    requestAnimationFrame(f);
-  };
-  requestAnimationFrame(f);
-}
-
-function screen16(){
-  if(cameraUtils) cameraUtils.stop();
-  document.getElementById('cameraPopup')?.classList.remove('show');
-  const popup = document.getElementById('cameraPopup');
-  if (popup) {
-    popup.classList.remove('show', 'good', 'bad');
-    popup.style.display = 'none';
-  }
-  base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
-  b.onclick=()=>instr('b_sig_rate.jpg','ratings');
-}
-
-function ratings(){
-  const all=[...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...S.female,...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...S.male];
-  const go=()=>{
-    if(!ratings.i)ratings.i=0;
-    if(ratings.i>=all.length) return finishSavingScreen();
-
-    base(`
-      <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
-      ${picture(all[ratings.i],'rating-face')}
-      <div class="rating-labels">
-        <span>9 = במידה רבה מאוד</span>
-        <span>1 = במידה מועטה מאוד</span>
-      </div>
-      <div class="scale">
-        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
-      </div>
-    `);
-  };
-  ratings.rate=n=>{
-    S.ratings.push({stimulus:all[ratings.i],rating:n});
-    ratings.i++;
-    go();
-  };
-  go();
-}
-
-function finishSavingScreen() {
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
-
-  const dataToSave = {
-    participant_summary:{
-      ParticipantNo:S.id,
-      Age:S.age,
-      Gender:S.gender,
-      Calibration_Attempts_block1:S.cal1,
-      Calibration_Attempts_block2:S.cal2,
-      Calibration_Accuracy_Score_Block1:S.calAcc1,
-      Calibration_Accuracy_Score_Block2:S.calAcc2,
-      raw_gaze_count:S.raw.length,
-      ratings:S.ratings
-    },
-    raw_gaze:S.raw,
-    trials:S.trials,
-    timestamp: new Date().toISOString()
-  };
-
-  localStorage.setItem('participant_'+S.id+'_data',JSON.stringify(dataToSave));
-
-  db.collection("participants").doc(String(S.id)).set(dataToSave)
-    .then(() => {
-      console.log("הנתונים נשמרו בהצלחה ב-Firebase.");
-      finalScreen();
-    })
-    .catch((error) => {
-      console.error("שגיאה בשמירת נתונים ל-Firebase:", error);
-      finalScreen(true);
-    });
-}
-
-function finalScreen(hasError = false) {
-  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה.";
-  if (hasError) {
-    message = "הניסוי הסתיים. הייתה שגיאה בשמירה לענן, אך הנתונים נשמרו בגיבוי המקומי של הדפדפן.";
   }
 
-  base(`
-    ${picture('biu_logo.png','logo')}
-    <div class="panel">
-      <h1>תודה רבה על השתתפותך 😊</h1>
-      <p>${message}</p>
-      <h2 style="margin-top: 30px; color: #ffea00;">כעת ניתן לצאת מדף זה.</h2>
-    </div>
-  `);
+  // עדכון התצוגה הויזואלית
+  const indicator = document.getElementById('indicator');
+  indicator.className = `indicator-box ${colorClass}`;
+  document.getElementById('quadrantText').textContent = quadrant;
+
+  document.getElementById('dbgNormX').textContent = normX !== null ? normX.toFixed(4) : "N/A";
+  document.getElementById('dbgNormY').textContent = normY !== null ? normY.toFixed(4) : "N/A";
+  document.getElementById('dbgGazeX').textContent = gaze ? Math.round(gaze.x) : "N/A";
+  document.getElementById('dbgGazeY').textContent = gaze ? Math.round(gaze.y) : "N/A";
+  document.getElementById('dbgQuad').textContent = quadrant;
+
+  // תיעוד נתונים בכל פריים
+  const frameRecord = {
+    timestamp: Number((now - startTime).toFixed(2)),
+    participant: participant,
+    gazeX: gaze ? Number(gaze.x.toFixed(2)) : null,
+    gazeY: gaze ? Number(gaze.y.toFixed(2)) : null,
+    normX: normX !== null ? Number(normX.toFixed(4)) : null,
+    normY: normY !== null ? Number(normY.toFixed(4)) : null,
+    quadrant: quadrant
+  };
+
+  frameLogs.push(frameRecord);
+  document.getElementById('dbgCount').textContent = frameLogs.length;
+
+  requestAnimationFrame(diagnosticLoop);
 }
 
-function exit(t){
-  document.body.style.cursor = 'default';
-  base(`<div class="panel"><h2>${t}</h2></div>`);
-}
+function downloadCSV() {
+  if (frameLogs.length === 0) { alert("אין נתונים להורדה"); return; }
 
-preload();
+  const headers = ["timestamp", "participant", "gazeX", "gazeY", "normX", "normY", "quadrant"];
+  const csvRows = [headers.join(",")];
+
+  for (const row of frameLogs) {
+    const values = headers.map(header => row[header] ?? "");
+    csvRows.push(values.join(","));
+  }
+
+  const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.setAttribute("href", url);
+  a.setAttribute("download", `gaze_diag_${participant}_${Date.now()}.csv`);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 </script>
 </body>
 </html>
