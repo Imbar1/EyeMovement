@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>בדיקת דיאגנוסטיקה - מעקב עיניים מיוצב</title>
+<title>בדיקת דיאגנוסטיקה - מעקב עיניים מיוצב Y</title>
 
 <!-- MediaPipe Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -50,7 +50,7 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
 <!-- מסך 1: הזנת מספר משתתף -->
 <section id="screen1" class="screen active">
   <div class="panel">
-    <h1>בדיקת כיול ודיאגנוסטיקה (מיוצב)</h1>
+    <h1>בדיקת כיול ודיאגנוסטיקה</h1>
     <p>נא להזין מספר משתתף כדי להתחיל:</p>
     <input id="participantId" class="input" type="text" placeholder="1234">
     <br>
@@ -105,7 +105,7 @@ let frameLogs = [];
 let startTime = 0;
 let isTracking = false;
 
-// MediaPipe & Diagnostic variables
+// MediaPipe & Variables
 let faceMesh = null;
 let cameraUtils = null;
 let currentFeatures = null;
@@ -114,7 +114,6 @@ let calibDataY = [];
 let weightsX = null;
 let weightsY = null;
 
-// Smoothed Gaze Coordinates
 let smoothGazeX = null;
 let smoothGazeY = null;
 
@@ -124,7 +123,7 @@ function showScreen(screenId) {
   if(target) target.classList.add('active');
 }
 
-// Ridge Regression עם מקדם ייצוב מוגדל (0.01) למניעת התחרפנות ציר Y
+// Ridge Regression מיוצבת
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
@@ -135,8 +134,8 @@ function solveLinearRegression(X, Y) {
     }
   }
   
-  // מקדם ייצוב (L2 Regularization)
-  for(let i=0; i<K; i++) XTX[i][i] += 1e-2;
+  // מקדם רגולריזציה מיוצב
+  for(let i=0; i<K; i++) XTX[i][i] += 1e-3;
 
   let I = Array.from({length: K}, (_, i) => Array.from({length: K}, (_, j) => i === j ? 1 : 0));
   let M = XTX.map(row => [...row]);
@@ -173,17 +172,17 @@ function predictGaze() {
     rawY += currentFeatures[i] * weightsY[i];
   }
 
-  // הגבלה לגבולות המסך (Clamping)
+  // הגבלה לגבולות המסך
   rawX = Math.max(0, Math.min(window.innerWidth, rawX));
   rawY = Math.max(0, Math.min(window.innerHeight, rawY));
 
-  // החלקת תנועה (Exponential Moving Average) למניעת קפיצות
+  // החלקת תנועה (EMA)
   if (smoothGazeX === null) {
     smoothGazeX = rawX;
     smoothGazeY = rawY;
   } else {
-    smoothGazeX = smoothGazeX * 0.75 + rawX * 0.25;
-    smoothGazeY = smoothGazeY * 0.75 + rawY * 0.25;
+    smoothGazeX = smoothGazeX * 0.70 + rawX * 0.30;
+    smoothGazeY = smoothGazeY * 0.70 + rawY * 0.30;
   }
 
   return { x: smoothGazeX, y: smoothGazeY };
@@ -229,33 +228,53 @@ function initCamera() {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
 
-      // נקודות מפתח: אישונים, עפעפיים, זיוויות עין ואף
+      // אישונים
       const lIris = lm[468], rIris = lm[473];
-      const lTop = lm[159], lBot = lm[145], lOut = lm[33], lIn = lm[133];
-      const rTop = lm[386], rBot = lm[374], rOut = lm[263], rIn = lm[362];
-      const nose = lm[1];
 
-      // גודל העין (רוחב וגובה)
-      const lWidth = Math.hypot(lOut.x - lIn.x, lOut.y - lIn.y) || 0.01;
-      const lHeight = Math.hypot(lTop.x - lBot.x, lTop.y - lBot.y) || 0.01;
-      const rWidth = Math.hypot(rOut.x - rIn.x, rOut.y - rIn.y) || 0.01;
-      const rHeight = Math.hypot(rTop.x - rBot.x, rTop.y - rBot.y) || 0.01;
+      // זיוויות העין (פינות קבועות בלבד)
+      const lOut = lm[33], lIn = lm[133];
+      const rOut = lm[263], rIn = lm[362];
 
-      // בדיקת מצמוץ (עין סגורה)
-      if (lHeight / lWidth < 0.15 || rHeight / rWidth < 0.15) {
-        currentFeatures = null; // מתעלם מהפריים בזמן מצמוץ
+      // עפעפיים לבדיקת מצמוץ בלבד
+      const lTop = lm[159], lBot = lm[145];
+      const lEyeH = Math.hypot(lTop.x - lBot.x, lTop.y - lBot.y);
+      const lEyeW = Math.hypot(lOut.x - lIn.x, lOut.y - lIn.y);
+
+      // סינון בזמן מצמוץ
+      if (lEyeH / (lEyeW || 0.01) < 0.12) {
+        currentFeatures = null;
         return;
       }
 
-      // **חישוב יחסי של מיקום האישון בתוך העין**
-      const lRelX = (lIris.x - lIn.x) / lWidth;
-      const lRelY = (lIris.y - lTop.y) / lHeight;
-      const rRelX = (rIris.x - rIn.x) / rWidth;
-      const rRelY = (rIris.y - rTop.y) / rHeight;
+      // נקודות אמצע של שקעי העיניים (יציב לחלוטין לגולגולת)
+      const mLx = (lOut.x + lIn.x) / 2;
+      const mLy = (lOut.y + lIn.y) / 2;
+      const mRx = (rOut.x + rIn.x) / 2;
+      const mRy = (rOut.y + rIn.y) / 2;
 
-      // וקטור תכונות מנורמל וחסין לתזוזות ראש
-      currentFeatures = [1, lRelX, lRelY, rRelX, rRelY, nose.x, nose.y];
+      // קנה מידה יציב (מרחק בין מרכזי העיניים)
+      const eyeDistance = Math.hypot(mRx - mLx, mRy - mLy) || 0.1;
 
+      // הסטות מנורמלות
+      const dxL = (lIris.x - mLx) / eyeDistance;
+      const dyL = (lIris.y - mLy) / eyeDistance;
+      const dxR = (rIris.x - mRx) / eyeDistance;
+      const dyR = (rIris.y - mRy) / eyeDistance;
+
+      // נקודת אופק של הראש (גשר האף)
+      const noseBridge = lm[6];
+
+      // וקטור תכונות פולינומיאלי לבדיקת תנועה לא ליניארית בציר Y ו-X
+      currentFeatures = [
+        1,
+        dxL, dyL,
+        dxR, dyR,
+        noseBridge.x, noseBridge.y,
+        dxL * dxL, dyL * dyL,
+        dxR * dxR, dyR * dyR
+      ];
+
+      const nose = lm[1];
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
       if (centered) {
         popup.classList.add('good');
