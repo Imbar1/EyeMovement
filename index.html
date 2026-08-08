@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>בדיקת דיאגנוסטיקה - מעקב עיניים</title>
+<title>בדיקת דיאגנוסטיקה - מעקב עיניים מיוצב</title>
 
 <!-- MediaPipe Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -50,7 +50,7 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
 <!-- מסך 1: הזנת מספר משתתף -->
 <section id="screen1" class="screen active">
   <div class="panel">
-    <h1>בדיקת כיול ודיאגנוסטיקה</h1>
+    <h1>בדיקת כיול ודיאגנוסטיקה (מיוצב)</h1>
     <p>נא להזין מספר משתתף כדי להתחיל:</p>
     <input id="participantId" class="input" type="text" placeholder="1234">
     <br>
@@ -71,7 +71,7 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
 <!-- מסך 3: כיול -->
 <section id="screenCalib" class="screen"></section>
 
-<!-- מסך 4: דיאגנוסטיקה ובדיקת אינדיקטור -->
+<!-- מסך 4: דיאגנוסטיקה -->
 <section id="screenDiag" class="screen">
   <div id="indicator" class="indicator-box bg-none">
     <span id="quadrantText">ממתין הטיות...</span>
@@ -105,7 +105,7 @@ let frameLogs = [];
 let startTime = 0;
 let isTracking = false;
 
-// MediaPipe variables
+// MediaPipe & Diagnostic variables
 let faceMesh = null;
 let cameraUtils = null;
 let currentFeatures = null;
@@ -114,12 +114,17 @@ let calibDataY = [];
 let weightsX = null;
 let weightsY = null;
 
+// Smoothed Gaze Coordinates
+let smoothGazeX = null;
+let smoothGazeY = null;
+
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
   if(target) target.classList.add('active');
 }
 
+// Ridge Regression עם מקדם ייצוב מוגדל (0.01) למניעת התחרפנות ציר Y
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
@@ -129,7 +134,9 @@ function solveLinearRegression(X, Y) {
       for(let n=0; n<N; n++) XTX[i][j] += X[n][i] * X[n][j];
     }
   }
-  for(let i=0; i<K; i++) XTX[i][i] += 1e-4;
+  
+  // מקדם ייצוב (L2 Regularization)
+  for(let i=0; i<K; i++) XTX[i][i] += 1e-2;
 
   let I = Array.from({length: K}, (_, i) => Array.from({length: K}, (_, j) => i === j ? 1 : 0));
   let M = XTX.map(row => [...row]);
@@ -160,12 +167,26 @@ function solveLinearRegression(X, Y) {
 
 function predictGaze() {
   if(!weightsX || !weightsY || !currentFeatures) return null;
-  let x = 0, y = 0;
+  let rawX = 0, rawY = 0;
   for(let i=0; i<currentFeatures.length; i++) {
-    x += currentFeatures[i] * weightsX[i];
-    y += currentFeatures[i] * weightsY[i];
+    rawX += currentFeatures[i] * weightsX[i];
+    rawY += currentFeatures[i] * weightsY[i];
   }
-  return {x, y};
+
+  // הגבלה לגבולות המסך (Clamping)
+  rawX = Math.max(0, Math.min(window.innerWidth, rawX));
+  rawY = Math.max(0, Math.min(window.innerHeight, rawY));
+
+  // החלקת תנועה (Exponential Moving Average) למניעת קפיצות
+  if (smoothGazeX === null) {
+    smoothGazeX = rawX;
+    smoothGazeY = rawY;
+  } else {
+    smoothGazeX = smoothGazeX * 0.75 + rawX * 0.25;
+    smoothGazeY = smoothGazeY * 0.75 + rawY * 0.25;
+  }
+
+  return { x: smoothGazeX, y: smoothGazeY };
 }
 
 function startApp() {
@@ -207,8 +228,33 @@ function initCamera() {
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
-      const lIris = lm[468], rIris = lm[473], nose = lm[1];
-      currentFeatures = [1, lIris.x, lIris.y, rIris.x, rIris.y, nose.x, nose.y];
+
+      // נקודות מפתח: אישונים, עפעפיים, זיוויות עין ואף
+      const lIris = lm[468], rIris = lm[473];
+      const lTop = lm[159], lBot = lm[145], lOut = lm[33], lIn = lm[133];
+      const rTop = lm[386], rBot = lm[374], rOut = lm[263], rIn = lm[362];
+      const nose = lm[1];
+
+      // גודל העין (רוחב וגובה)
+      const lWidth = Math.hypot(lOut.x - lIn.x, lOut.y - lIn.y) || 0.01;
+      const lHeight = Math.hypot(lTop.x - lBot.x, lTop.y - lBot.y) || 0.01;
+      const rWidth = Math.hypot(rOut.x - rIn.x, rOut.y - rIn.y) || 0.01;
+      const rHeight = Math.hypot(rTop.x - rBot.x, rTop.y - rBot.y) || 0.01;
+
+      // בדיקת מצמוץ (עין סגורה)
+      if (lHeight / lWidth < 0.15 || rHeight / rWidth < 0.15) {
+        currentFeatures = null; // מתעלם מהפריים בזמן מצמוץ
+        return;
+      }
+
+      // **חישוב יחסי של מיקום האישון בתוך העין**
+      const lRelX = (lIris.x - lIn.x) / lWidth;
+      const lRelY = (lIris.y - lTop.y) / lHeight;
+      const rRelX = (rIris.x - rIn.x) / rWidth;
+      const rRelY = (rIris.y - rTop.y) / rHeight;
+
+      // וקטור תכונות מנורמל וחסין לתזוזות ראש
+      currentFeatures = [1, lRelX, lRelY, rRelX, rRelY, nose.x, nose.y];
 
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
       if (centered) {
@@ -234,7 +280,6 @@ function initCamera() {
 }
 
 function goToCalibration() {
-  // הסתרת חלון המצלמה כדי שלא יסתיר את נקודת הכיול ב-10%, 10%
   document.getElementById('cameraPopup').classList.remove('visible');
   showScreen('screenCalib');
 
@@ -250,7 +295,6 @@ function goToCalibration() {
 
   function renderPoint() {
     if(index >= points.length) {
-      // חישוב הרגרסיה בסיום הכיול
       const X = calibDataX.map(d => d.feat);
       const Yx = calibDataX.map(d => d.target);
       const Yy = calibDataY.map(d => d.target);
@@ -292,7 +336,6 @@ function goToCalibration() {
 }
 
 function startDiagnostics() {
-  // מחזירים את חלון המצלמה במסך הדיאגנוסטיקה
   document.getElementById('cameraPopup').classList.add('visible');
   showScreen('screenDiag');
 
@@ -316,7 +359,6 @@ function diagnosticLoop() {
     normX = gaze.x / window.innerWidth;
     normY = gaze.y / window.innerHeight;
 
-    // חישוב הרביע לפי ערכי X ו-Y גולמיים מהכיול
     if (normX < 0.5 && normY < 0.5) {
       quadrant = "TopLeft";
       colorClass = "bg-blue";
@@ -332,7 +374,6 @@ function diagnosticLoop() {
     }
   }
 
-  // עדכון התצוגה הויזואלית
   const indicator = document.getElementById('indicator');
   indicator.className = `indicator-box ${colorClass}`;
   document.getElementById('quadrantText').textContent = quadrant;
@@ -343,7 +384,6 @@ function diagnosticLoop() {
   document.getElementById('dbgGazeY').textContent = gaze ? Math.round(gaze.y) : "N/A";
   document.getElementById('dbgQuad').textContent = quadrant;
 
-  // תיעוד נתונים בכל פריים
   const frameRecord = {
     timestamp: Number((now - startTime).toFixed(2)),
     participant: participant,
