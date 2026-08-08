@@ -13,40 +13,42 @@
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family:Arial,sans-serif;overflow:hidden}
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
-.hidden{display:none!important}
-.panel{background:#333;padding:30px;border-radius:12px;max-width:600px;width:90%;box-shadow:0 4px 15px rgba(0,0,0,0.5)}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:10}
+.screen.active{display:flex!important}
+
+.panel{background:#333;padding:30px;border-radius:12px;max-width:600px;width:90%;box-shadow:0 4px 15px rgba(0,0,0,0.5);z-index:20}
 .btn{font-size:20px;color:#fff;background:#28a745;border:0;border-radius:6px;padding:12px 24px;cursor:pointer;margin-top:15px}
 .btn:hover{background:#218838}
 .input{font-size:22px;padding:10px;text-align:center;margin:15px 0;width:200px;border-radius:6px;border:1px solid #ccc}
 
-/* חלון מצלמה */
-.camera-popup{position:fixed;top:20px;left:20px;z-index:9999;background:#111;padding:8px;border-radius:8px;text-align:center;border:4px solid #d33}
+/* חלון מצלמה צף */
+.camera-popup{position:fixed;top:15px;left:15px;z-index:9999;background:#111;padding:8px;border-radius:8px;text-align:center;border:4px solid #d33;display:none}
+.camera-popup.visible{display:block}
 .camera-popup.good{border-color:#28a745}
-.cam-wrapper{position:relative;width:200px;height:140px;overflow:hidden;border-radius:4px}
-.cam-wrapper video{width:200px;height:140px;object-fit:cover;transform:scaleX(-1)}
-.cam-wrapper canvas{position:absolute;top:0;left:0;width:200px;height:140px;transform:scaleX(-1)}
+.cam-wrapper{position:relative;width:180px;height:120px;overflow:hidden;border-radius:4px}
+.cam-wrapper video{width:180px;height:120px;object-fit:cover;transform:scaleX(-1)}
+.cam-wrapper canvas{position:absolute;top:0;left:0;width:180px;height:120px;transform:scaleX(-1)}
 
 /* כיול */
-.calibration{position:absolute;inset:0}
-.calpoint{position:absolute;width:50px;height:50px;background:#fff;border:4px solid #000;border-radius:50%;transform:translate(-50%,-50%);cursor:pointer;color:#000;font-weight:bold;font-size:20px;display:flex;align-items:center;justify-content:center}
+.calibration{position:absolute;inset:0;z-index:30}
+.calpoint{position:absolute;width:55px;height:55px;background:#fff;border:4px solid #000;border-radius:50%;transform:translate(-50%,-50%);cursor:pointer;color:#000;font-weight:bold;font-size:22px;display:flex;align-items:center;justify-content:center}
 .calpoint.done{background:#28a745;color:#fff}
 
 /* אינדיקטור דיאגנוסטיקה */
-.indicator-box{width:280px;height:280px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.8);transition:background-color 0.15s ease;border:4px solid #fff}
+.indicator-box{width:260px;height:260px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.8);transition:background-color 0.15s ease;border:4px solid #fff}
 .bg-blue{background-color:#0055ff !important}  /* Top-Left */
 .bg-red{background-color:#ff2222 !important}   /* Top-Right */
 .bg-green{background-color:#00cc44 !important} /* Bottom-Right */
 .bg-yellow{background-color:#ffcc00 !important; color:#000 !important; text-shadow:none !important} /* Bottom-Left */
 .bg-none{background-color:#555 !important}
 
-.debug-info{margin-top:20px;font-family:monospace;font-size:18px;background:rgba(0,0,0,0.6);padding:15px;border-radius:8px;text-align:right;direction:ltr;line-height:1.5}
+.debug-info{margin-top:20px;font-family:monospace;font-size:16px;background:rgba(0,0,0,0.7);padding:15px;border-radius:8px;text-align:right;direction:ltr;line-height:1.5}
 </style>
 </head>
 <body>
 
-<!-- מסך 1: הזנת תעודת זהות / מספר משתתף -->
-<section id="screen1" class="screen">
+<!-- מסך 1: הזנת מספר משתתף -->
+<section id="screen1" class="screen active">
   <div class="panel">
     <h1>בדיקת כיול ודיאגנוסטיקה</h1>
     <p>נא להזין מספר משתתף כדי להתחיל:</p>
@@ -56,8 +58,8 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
   </div>
 </section>
 
-<!-- מסך 2: בדיקת מיקום פנים -->
-<section id="screenCamera" class="screen hidden">
+<!-- מסך 2: אימות מיקום פנים -->
+<section id="screenCamera" class="screen">
   <div class="panel">
     <h2>אימות מיקום פנים</h2>
     <p>וודא/י שהפנים ממורכזות בחלון המצלמה בפינה השמאלית העליונה.</p>
@@ -67,10 +69,10 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
 </section>
 
 <!-- מסך 3: כיול -->
-<section id="screenCalib" class="screen hidden"></section>
+<section id="screenCalib" class="screen"></section>
 
 <!-- מסך 4: דיאגנוסטיקה ובדיקת אינדיקטור -->
-<section id="screenDiag" class="screen hidden">
+<section id="screenDiag" class="screen">
   <div id="indicator" class="indicator-box bg-none">
     <span id="quadrantText">ממתין הטיות...</span>
   </div>
@@ -85,14 +87,14 @@ html,body{margin:0;width:100%;height:100%;background:#222;color:#fff;font-family
     <div><strong>Frames Logged:</strong> <span id="dbgCount">0</span></div>
   </div>
 
-  <button class="btn" onclick="downloadCSV()" style="margin-top:20px;background:#17a2b8">הורד קובץ נתונים (CSV)</button>
+  <button class="btn" onclick="downloadCSV()" style="margin-top:15px;background:#17a2b8">הורד קובץ נתונים (CSV)</button>
 </section>
 
 <!-- חלון וידאו צף -->
-<div id="cameraPopup" class="camera-popup hidden">
+<div id="cameraPopup" class="camera-popup">
   <div class="cam-wrapper">
     <video id="webcamVideo" autoplay playsinline muted></video>
-    <canvas id="meshCanvas" width="200" height="140"></canvas>
+    <canvas id="meshCanvas" width="180" height="120"></canvas>
   </div>
   <div id="cameraStatusText" style="font-size:12px;margin-top:4px">מאתר פנים...</div>
 </div>
@@ -112,7 +114,12 @@ let calibDataY = [];
 let weightsX = null;
 let weightsY = null;
 
-// Matrix Linear Regression
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(screenId);
+  if(target) target.classList.add('active');
+}
+
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
@@ -167,14 +174,15 @@ function startApp() {
   participant = input;
   document.getElementById('dbgPart').textContent = participant;
 
-  document.getElementById('screen1').classList.add('hidden');
-  document.getElementById('screenCamera').classList.remove('hidden');
-  document.getElementById('cameraPopup').classList.remove('hidden');
+  showScreen('screenCamera');
+  document.getElementById('cameraPopup').classList.add('visible');
 
   initCamera();
 }
 
 function initCamera() {
+  if (faceMesh) return;
+
   const video = document.getElementById('webcamVideo');
   const canvas = document.getElementById('meshCanvas');
   const ctx = canvas.getContext('2d');
@@ -226,8 +234,9 @@ function initCamera() {
 }
 
 function goToCalibration() {
-  document.getElementById('screenCamera').classList.add('hidden');
-  document.getElementById('screenCalib').classList.remove('hidden');
+  // הסתרת חלון המצלמה כדי שלא יסתיר את נקודת הכיול ב-10%, 10%
+  document.getElementById('cameraPopup').classList.remove('visible');
+  showScreen('screenCalib');
 
   const points = [
     {x:10,y:10},{x:50,y:10},{x:90,y:10},
@@ -241,7 +250,7 @@ function goToCalibration() {
 
   function renderPoint() {
     if(index >= points.length) {
-      // חישוב הרגרסיה
+      // חישוב הרגרסיה בסיום הכיול
       const X = calibDataX.map(d => d.feat);
       const Yx = calibDataX.map(d => d.target);
       const Yy = calibDataY.map(d => d.target);
@@ -262,7 +271,8 @@ function goToCalibration() {
 
     let clicks = 0;
     const btn = document.getElementById('calBtn');
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.preventDefault();
       if(currentFeatures) {
         const targetX = (pt.x / 100) * window.innerWidth;
         const targetY = (pt.y / 100) * window.innerHeight;
@@ -282,8 +292,9 @@ function goToCalibration() {
 }
 
 function startDiagnostics() {
-  document.getElementById('screenCalib').classList.add('hidden');
-  document.getElementById('screenDiag').classList.remove('hidden');
+  // מחזירים את חלון המצלמה במסך הדיאגנוסטיקה
+  document.getElementById('cameraPopup').classList.add('visible');
+  showScreen('screenDiag');
 
   startTime = performance.now();
   isTracking = true;
