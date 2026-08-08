@@ -57,7 +57,7 @@ h2{font-size:30px}
 .p1{left:5vw;top:8vh}
 .p2{left:63vw;top:8vh}
 .p3{left:63vw;top:60vh}
-.p4{left:5vw;top:606vh} /* הערה קטנה: יש כאן שגיאת הדפסה בקוד המקורי, 606vh במקום 60vh. השארתי כי זה היה שם, שווה בדיקה */
+.p4{left:5vw;top:60vh}
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
@@ -76,7 +76,6 @@ h2{font-size:30px}
 .camera-popup.bad{border:4px solid #d33}
 
 .calibration{position:absolute;inset:0}
-/* הפיכת נקודת הכיול לריבוע מושלם כמו שביקשת */
 .calpoint{position:absolute;width:58px;height:58px;background:#fff;border:5px solid #222;border-radius:0;transform:translate(-50%,-50%);cursor:pointer;color:#222;font:700 24px Calibri,Arial,sans-serif;display:flex;align-items:center;justify-content:center}
 .calpoint.done{background:#35d36b}
 .status{min-height:30px;color:#ffe66d}
@@ -161,19 +160,16 @@ function enterFullscreen() {
   }
 }
 
-// פונקציה חדשה: שמירה חלקית למניעת אובדן נתונים
 function autoSavePartial() {
   if(!S.id) return;
-  // שמירה מקומית מלאה
   localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
   
-  // שמירה לענן לקולקציה נפרדת של גיבויים
   db.collection("participants_partial").doc(String(S.id)).set({
     trials_completed: S.trials.length,
     raw_gaze_count: S.raw.length,
     trials_data: S.trials,
     last_update: new Date().toISOString()
-  }, {merge: true}).catch(() => {}); // מתעלמים משגיאות רשת זמניות כדי לא להפריע לניסוי
+  }, {merge: true}).catch(() => {});
 }
 
 // ==========================================
@@ -414,10 +410,7 @@ function response(row,done){
     clearTimeout(timeoutId);
     document.onkeydown=null;
     
-    // שמירת הנתונים בזיכרון הראשי
     S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:q===row[row.length-1]});
-    
-    // קריאה לשמירת גיבוי אוטומטית
     autoSavePartial();
 
     const finishAnswer=()=>{if(typeof done==='function')done()};
@@ -429,7 +422,6 @@ function response(row,done){
     answered=true;
     document.onkeydown=null;
     
-    // שמירה במידה ולא ענו בזמן
     S.trials.push({phase:(row.length === 6 ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
     autoSavePartial();
 
@@ -441,7 +433,7 @@ function response(row,done){
 
 function practice(){
   showFeedback=true;
-  document.body.style.cursor = 'none'; // העלמת העכבר בתחילת הבלוק
+  document.body.style.cursor = 'none';
   let i=0,finished=false;
   const go=()=>{
     if(finished)return;
@@ -451,7 +443,7 @@ function practice(){
       finished=true;
       showFeedback=false;
       document.onkeydown=null;
-      document.body.style.cursor = 'default'; // החזרת העכבר בסיום הבלוק
+      document.body.style.cursor = 'default';
       setTimeout(screenMovementInstructions,400)
     }
   };
@@ -498,7 +490,6 @@ function calibrate(block){
     {x:10,y:90},{x:50,y:90},{x:90,y:90}
   ];
 
-  // איפוס נתוני הכיול עבור הבלוק הנוכחי
   calibDataX = [];
   calibDataY = [];
 
@@ -560,7 +551,7 @@ function screen13(block){
 
 function mainStart(block){
   showFeedback=false;
-  document.body.style.cursor = 'none'; // העלמת העכבר בתחילת הבלוק המרכזי
+  document.body.style.cursor = 'none';
   
   const sex=block===1?(Math.random()<.5?'F':'M'):(S.lastSex==='F'?'M':'F');
   S.lastSex=sex;
@@ -606,9 +597,7 @@ function mainStart(block){
   let trialIndex=0;
   const go=()=>{
     if(trialIndex>=rows.length){
-      document.body.style.cursor = 'default'; // החזרת העכבר בסיום הבלוק
-      
-      // במקום לעבור ישר למסך ההמתנה, אנו דורשים כיול מלא מחדש לבלוק השני
+      document.body.style.cursor = 'default';
       if(block === 1) {
         screenFaceSetup(2); 
       } else {
@@ -643,23 +632,45 @@ function mainStart(block){
   go();
 }
 
+// ==========================================
+// פונקציית המעקב המעודכנת (כוללת דגימת מנורמלים ורביעים)
+// ==========================================
 function track(t0,sex,trial){
   const stopAt=t0+5000;
   const f=()=>{
     const now=performance.now();
     if(now>=stopAt)return;
+    
     const gaze = predictGaze();
+    let normX = null, normY = null, quadrant = null;
+
+    if (gaze && gaze.x !== null && gaze.y !== null) {
+      // חישוב המיקום המנורמל במרחב ה-0 עד 1
+      normX = gaze.x / window.innerWidth;
+      normY = gaze.y / window.innerHeight;
+
+      // קביעת הרביע באופן מיידי
+      if (normX < 0.5 && normY < 0.5) quadrant = "TopLeft";       // Pos1
+      else if (normX >= 0.5 && normY < 0.5) quadrant = "TopRight";  // Pos2
+      else if (normX >= 0.5 && normY >= 0.5) quadrant = "BottomRight"; // Pos3
+      else if (normX < 0.5 && normY >= 0.5) quadrant = "BottomLeft";  // Pos4
+    }
+
     S.raw.push({
-      participant:S.id,
-      block:sex,
-      trial,
-      timestamp:now-t0,
-      gazeX:gaze?.x??null,
-      gazeY:gaze?.y??null,
-      screenWidth:innerWidth,
-      screenHeight:innerHeight,
-      phase:now-t0<=1000?'Phase1':'Phase2'
+      participant: S.id,
+      block: sex,
+      trial: trial,
+      timestamp: now - t0,
+      gazeX: gaze?.x ?? null,
+      gazeY: gaze?.y ?? null,
+      normX: normX !== null ? Number(normX.toFixed(4)) : null,
+      normY: normY !== null ? Number(normY.toFixed(4)) : null,
+      quadrant: quadrant,
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight,
+      phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
     });
+
     requestAnimationFrame(f);
   };
   requestAnimationFrame(f);
