@@ -16,6 +16,7 @@
 <!-- Firebase SDKs (Compat CDN) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -75,7 +76,6 @@ h2{font-size:30px}
 .camera-popup.good{border:4px solid #35d36b}
 .camera-popup.bad{border:4px solid #d33}
 
-/* אלמנט כיול בודד (לבן קונטרסטי) */
 .calib-stage{position:absolute;inset:0;z-index:30;background:#808080}
 .calib-target{position:absolute;transform:translate(-50%,-50%);width:80px;height:80px;display:flex;align-items:center;justify-content:center}
 .calib-center-dot{width:16px;height:16px;background-color:#ffffff;border:2px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 10px #ffffff}
@@ -136,6 +136,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 // ==========================================
 // Variables & Data Structures
@@ -184,13 +185,6 @@ function enterFullscreen() {
 function autoSavePartial() {
   if(!S.id) return;
   localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
-  
-  db.collection("participants_partial").doc(String(S.id)).set({
-    trials_completed: S.trials.length,
-    raw_gaze_count: S.raw.length,
-    trials_data: S.trials,
-    last_update: new Date().toISOString()
-  }, {merge: true}).catch(() => {});
 }
 
 // ==========================================
@@ -210,7 +204,6 @@ let smoothGazeY = null;
 let goodStateStartTime = 0;
 let isAligned = false;
 
-// Ridge Regression מיוצבת
 function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
@@ -431,19 +424,55 @@ let showFeedback=false;
 const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
 
 // ==========================================
-// פונקציית כיול 6 נקודות (אמיתי או סימולציה)
+// Calibration & Visual Transitions (400ms)
 // ==========================================
+function runTransition(fromPt, toPt, duration, onComplete) {
+  const startTime = performance.now();
+  
+  base(`
+    <div class="calib-stage">
+      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+        <line x1="${fromPt.x}%" y1="${fromPt.y}%" x2="${toPt.x}%" y2="${toPt.y}%" 
+              stroke="#ffffff" stroke-dasharray="6 6" stroke-width="3" opacity="0.7" />
+      </svg>
+      <div id="transDot" style="position:absolute;width:20px;height:20px;background:#ffffff;border:2px solid #002060;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ffffff;left:${fromPt.x}%;top:${fromPt.y}%;"></div>
+    </div>
+  `);
+
+  const dot = document.getElementById('transDot');
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    const curX = fromPt.x + (toPt.x - fromPt.x) * progress;
+    const curY = fromPt.y + (toPt.y - fromPt.y) * progress;
+
+    if (dot) {
+      dot.style.left = curX + '%';
+      dot.style.top = curY + '%';
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      onComplete();
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
 function run6PointCalibration(onComplete, isSimulation = false) {
   document.getElementById('cameraPopup')?.classList.remove('show');
 
-  // רצף 6 הנקודות: מרכז -> שמאל-למעלה -> ימין-למעלה -> ימין-למטה -> שמאל-למטה -> מרכז
   const points = [
     { x: 50, y: 50 }, // 1. מרכז
     { x: 10, y: 10 }, // 2. שמאל-למעלה
     { x: 90, y: 10 }, // 3. ימין-למעלה
     { x: 90, y: 90 }, // 4. ימין-למטה
     { x: 10, y: 90 }, // 5. שמאל-למטה
-    { x: 50, y: 50 }  // 6. מרכז
+    { x: 50, y: 50 }  // 6. חזרה למרכז
   ];
 
   if (!isSimulation) {
@@ -468,41 +497,50 @@ function run6PointCalibration(onComplete, isSimulation = false) {
       return;
     }
 
-    const pt = points[index];
-    base(`
-      <div class="calib-stage">
-        <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
-          <div class="calib-center-dot"></div>
-          <div class="calib-ring"></div>
+    const startPointLogic = () => {
+      const pt = points[index];
+      base(`
+        <div class="calib-stage">
+          <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
+            <div class="calib-center-dot"></div>
+            <div class="calib-ring"></div>
+          </div>
         </div>
-      </div>
-    `);
+      `);
 
-    const targetX = (pt.x / 100) * window.innerWidth;
-    const targetY = (pt.y / 100) * window.innerHeight;
-    const startTimePoint = performance.now();
-    const duration = 1200; // 1.2 שניות לכל נקודת כיול
-    const ignoreInitialMs = 250;
+      const targetX = (pt.x / 100) * window.innerWidth;
+      const targetY = (pt.y / 100) * window.innerHeight;
+      const startTimePoint = performance.now();
+      const duration = 1200;
+      const ignoreInitialMs = 250;
 
-    function sampleLoop() {
-      const elapsed = performance.now() - startTimePoint;
+      function sampleLoop() {
+        const elapsed = performance.now() - startTimePoint;
 
-      if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
-        if (currentFeatures) {
-          calibDataX.push({ feat: [...currentFeatures], target: targetX });
-          calibDataY.push({ feat: [...currentFeatures], target: targetY });
+        if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
+          if (currentFeatures) {
+            calibDataX.push({ feat: [...currentFeatures], target: targetX });
+            calibDataY.push({ feat: [...currentFeatures], target: targetY });
+          }
+        }
+
+        if (elapsed < duration) {
+          requestAnimationFrame(sampleLoop);
+        } else {
+          index++;
+          runNextPoint();
         }
       }
 
-      if (elapsed < duration) {
-        requestAnimationFrame(sampleLoop);
-      } else {
-        index++;
-        runNextPoint();
-      }
-    }
+      requestAnimationFrame(sampleLoop);
+    };
 
-    requestAnimationFrame(sampleLoop);
+    // אם אנחנו בנקודה שנייה ואילך, נבצע מעבר חזותי של 0.4 שניות מנקודה קודמת לחדשה
+    if (index > 0) {
+      runTransition(points[index - 1], points[index], 400, startPointLogic);
+    } else {
+      startPointLogic();
+    }
   }
 
   runNextPoint();
@@ -512,7 +550,6 @@ function trial(row, done, isPractice = false){
   const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
   const loadPromise=preloadTrial(faces);
 
-  // מריץ 6 נקודות כיול (באימון זו הדמיה בלבד, בבלוקים האמיתיים זה כיול מעקב עיניים פעיל)
   run6PointCalibration(() => {
     loadPromise.then(()=>{
       base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
@@ -585,7 +622,7 @@ function practice(){
   const go=()=>{
     if(finished)return;
     if(i<prac.length){
-      trial(prac[i++],go, true); // true מציין שזה אימון (הדמיית כיול)
+      trial(prac[i++],go, true);
     }else{
       finished=true;
       showFeedback=false;
@@ -648,7 +685,7 @@ function screen13(block){
       <h2>הוראות למשימת מעקב העיניים - חלק ${block}</h2>
       <p style="font-size:22px; line-height:1.6; text-align:right;">
         • לפני כל הצגה של 4 פרצופים, תופיע סדרה קצרה של <strong>6 נקודות כיול</strong> (מרכז, פינות, ובחזרה למרכז).<br>
-        • יש לעקוב במבט בלבד אחר הטבעת המצטמצמת בכל נקודה ולשמור על ראש יציב.<br>
+        • בין נקודה לנקודה יופיע קו מנחה לעין – יש לעקוב אחר תנועתו.<br>
         • <strong>הנקודה השישית והאחרונה ממוקמת במרכז המסך.</strong> מיד בסיומה יופיעו 4 הפרצופים.
       </p>
       <p style="font-size:20px; margin-top:30px;">ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש <strong>"רווח"</strong> כדי להתחיל.</p>
@@ -719,13 +756,11 @@ function mainStart(block){
 
     const loadPromise=preloadTrial(faces);
 
-    // כיול 6 נקודות אמיתי לפני תצוגת הפרצופים
     run6PointCalibration(() => {
       loadPromise.then(() => {
         base(`<div class="trial-grid">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
         
         const t0=performance.now();
-        // איסוף נתונים לכלל הטריילים (FFI = 1 ו- FFI = 0)
         track(t0, sex, tno, r.ffi);
 
         setTimeout(()=>{
@@ -738,9 +773,6 @@ function mainStart(block){
   go();
 }
 
-// ==========================================
-// פונקציית המעקב והקלטת נתונים
-// ==========================================
 function track(t0, sex, trial, ffi){
   const stopAt=t0+5000;
   const f=()=>{
@@ -754,17 +786,17 @@ function track(t0, sex, trial, ffi){
       normX = gaze.x / window.innerWidth;
       normY = gaze.y / window.innerHeight;
 
-      if (normX < 0.5 && normY < 0.5) quadrant = "TopLeft";       // Pos1
-      else if (normX >= 0.5 && normY < 0.5) quadrant = "TopRight";  // Pos2
-      else if (normX >= 0.5 && normY >= 0.5) quadrant = "BottomRight"; // Pos3
-      else if (normX < 0.5 && normY >= 0.5) quadrant = "BottomLeft";  // Pos4
+      if (normX < 0.5 && normY < 0.5) quadrant = "TopLeft";
+      else if (normX >= 0.5 && normY < 0.5) quadrant = "TopRight";
+      else if (normX >= 0.5 && normY >= 0.5) quadrant = "BottomRight";
+      else if (normX < 0.5 && normY >= 0.5) quadrant = "BottomLeft";
     }
 
     S.raw.push({
       participant: S.id,
       block: sex,
       trial: trial,
-      ffi: ffi, // 1 או 0 בכל פריים עבור כל הטריילים
+      ffi: ffi,
       timestamp: Number((now - t0).toFixed(2)),
       gazeX: gaze?.x ? Number(gaze.x.toFixed(2)) : null,
       gazeY: gaze?.y ? Number(gaze.y.toFixed(2)) : null,
@@ -819,43 +851,110 @@ function ratings(){
   go();
 }
 
-function finishSavingScreen() {
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
+// ==========================================
+// CSV Conversion & Download Helpers
+// ==========================================
+function buildSummaryCSV() {
+  const rows = [];
+  rows.push(['participant', 'age', 'gender', 'record_type', 'item_id', 'phase', 'rt', 'key', 'correct', 'timeout', 'rating'].join(','));
 
-  const dataToSave = {
-    participant_summary:{
-      ParticipantNo:S.id,
-      Age:S.age,
-      Gender:S.gender,
-      Calibration_Attempts_block1:S.cal1,
-      Calibration_Attempts_block2:S.cal2,
-      Calibration_Accuracy_Score_Block1:S.calAcc1,
-      Calibration_Accuracy_Score_Block2:S.calAcc2,
-      raw_gaze_count:S.raw.length,
-      ratings:S.ratings
-    },
-    raw_gaze:S.raw,
-    trials:S.trials,
-    timestamp: new Date().toISOString()
-  };
+  S.trials.forEach((t, idx) => {
+    rows.push([
+      `"${S.id}"`,
+      `"${S.age}"`,
+      `"${S.gender}"`,
+      `"trial"`,
+      `"${idx + 1}"`,
+      `"${t.phase || ''}"`,
+      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`,
+      `"${t.key || ''}"`,
+      `"${t.correct ? 1 : 0}"`,
+      `"${t.timeout ? 1 : 0}"`,
+      `""`
+    ].join(','));
+  });
 
-  localStorage.setItem('participant_'+S.id+'_data',JSON.stringify(dataToSave));
+  S.ratings.forEach(r => {
+    rows.push([
+      `"${S.id}"`,
+      `"${S.age}"`,
+      `"${S.gender}"`,
+      `"rating"`,
+      `"${r.stimulus || ''}"`,
+      `""`,
+      `""`,
+      `""`,
+      `""`,
+      `""`,
+      `"${r.rating}"`
+    ].join(','));
+  });
 
-  db.collection("participants").doc(String(S.id)).set(dataToSave)
-    .then(() => {
-      console.log("הנתונים נשמרו בהצלחה ב-Firebase.");
-      finalScreen();
-    })
-    .catch((error) => {
-      console.error("שגיאה בשמירת נתונים ל-Firebase:", error);
-      finalScreen(true);
+  return rows.join('\n');
+}
+
+function buildRawGazeCSV() {
+  if (!S.raw || S.raw.length === 0) return '';
+  const headers = ['participant', 'block', 'trial', 'ffi', 'timestamp', 'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'screenWidth', 'screenHeight', 'phase'];
+  const rows = [headers.join(',')];
+
+  S.raw.forEach(r => {
+    const row = headers.map(h => {
+      const val = r[h] === null || r[h] === undefined ? '' : r[h];
+      return `"${String(val).replace(/"/g, '""')}"`;
     });
+    rows.push(row.join(','));
+  });
+
+  return rows.join('\n');
+}
+
+function downloadCSV(csvContent, fileName) {
+  if (!csvContent) return;
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', fileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ==========================================
+// Firebase Storage Save Flow
+// ==========================================
+function finishSavingScreen() {
+  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>קובצי ה-CSV נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
+
+  const csvSummary = buildSummaryCSV();
+  const csvRaw = buildRawGazeCSV();
+
+  const summaryRef = storage.ref(`data/participant_${S.id}_summary.csv`);
+  const rawRef = storage.ref(`data/participant_${S.id}_raw_gaze.csv`);
+
+  Promise.all([
+    summaryRef.putString(csvSummary, 'raw', { contentType: 'text/csv' }),
+    rawRef.putString(csvRaw, 'raw', { contentType: 'text/csv' })
+  ])
+  .then(() => {
+    console.log("קובצי ה-CSV הועלו בהצלחה ל-Firebase Storage!");
+    finalScreen(false);
+  })
+  .catch((error) => {
+    console.error("שגיאה בהעלאת קובצי ה-CSV לענן:", error);
+    // מופעל אך ורק במקרה של שגיאה בענן: הורדה מקומית של קובצי ה-CSV
+    downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
+    downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
+    finalScreen(true);
+  });
 }
 
 function finalScreen(hasError = false) {
-  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה.";
+  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה בשרת בפורמט CSV.";
   if (hasError) {
-    message = "הניסוי הסתיים. הייתה שגיאה בשמירה לענן, אך הנתונים נשמרו בגיבוי המקומי של הדפדפן.";
+    message = "הניסוי הסתיים. הייתה שגיאה בחיבור לענן, לכן קובצי ה-CSV הורדו באופן אוטומטי למחשב שלך כגיבוי.";
   }
 
   base(`
