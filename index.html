@@ -101,7 +101,7 @@ h2{font-size:30px}
 .illus-row {
   display: flex;
   flex-direction: row;
-  direction: ltr; /* מבטיח סדר משמאל לימין באופן מוחלט */
+  direction: ltr;
   align-items: center;
   justify-content: center;
   gap: 16px;
@@ -473,19 +473,49 @@ async function preload(){
 
 function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
-function screen2(){base(`<div class="panel consent-choice"><h2>האם את/ה מרכיב/ה משקפיים?</h2><div><button class="btn" id="yes">כן</button><button class="btn no-btn" id="no">לא</button></div></div>`);document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));document.getElementById('no').addEventListener('click',consentScreen)}
+
+// 1. מסך משקפיים מעודכן (משלב את תמונת הדימוי מנכסי הניסוי)
+function screen2(){
+  base(`
+    <div class="panel consent-choice">
+      <h2>האם את/ה מרכיב/ה משקפיים?</h2>
+      ${picture('glasses_YN.jpg', 'slide')}
+      <div style="margin-top: 15px;">
+        <button class="btn" id="yes">כן</button>
+        <button class="btn no-btn" id="no">לא</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));
+  document.getElementById('no').addEventListener('click',consentScreen);
+}
+
 function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
 function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b">המשך</button>`);b.onclick=window[next]};
 function screen5(){instr('b_women_pics.jpg','screen6')}
 function screen7(){instr('b_men_pics.jpg','screen8')}
 
-function choose(g){const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);ns.forEach((_,i)=>document.getElementById('c'+i).onclick=()=>{const x=document.getElementById('c'+i);if(x.classList.contains('sel'))x.classList.remove('sel');else if(document.querySelectorAll('.sel').length<2)x.classList.add('sel');m.textContent='נבחרו: '+document.querySelectorAll('.sel').length+' מתוך 2'});b.onclick=()=>{const a=[...document.querySelectorAll('.sel')].map(x=>decodeURIComponent(x.src.split('/').pop()));if(a.length!==2){m.textContent='יש לבחור בדיוק שני פרצופים';return}S[g==='F'?'female':'male']=a;g==='F'?screen7():screen9()}}
+// 2. הסרת שלב ההוראות (מעבר ישיר מבחירת פרצופי הגברים למסך הוראות המשימה)
+function choose(g){
+  const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);
+  base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);
+  ns.forEach((_,i)=>document.getElementById('c'+i).onclick=()=>{
+    const x=document.getElementById('c'+i);
+    if(x.classList.contains('sel'))x.classList.remove('sel');
+    else if(document.querySelectorAll('.sel').length<2)x.classList.add('sel');
+    m.textContent='נבחרו: '+document.querySelectorAll('.sel').length+' מתוך 2'
+  });
+  b.onclick=()=>{
+    const a=[...document.querySelectorAll('.sel')].map(x=>decodeURIComponent(x.src.split('/').pop()));
+    if(a.length!==2){m.textContent='יש לבחור בדיוק שני פרצופים';return}
+    S[g==='F'?'female':'male']=a;
+    g==='F'?screen7():screenTaskInstructions()
+  }
+}
 function screen6(){choose('F')}
 function screen8(){choose('M')}
-let sl=1;
-function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;screenTaskInstructions()}}})}
 
-// מסך הוראות מפורטות למשימה (עם הגדלת כתב וצבעים מעודכנים)
+// 3. מסך הוראות המשימה (מורחב ומעודכן)
 function screenTaskInstructions(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   document.onkeydown = null;
@@ -494,7 +524,7 @@ function screenTaskInstructions(){
       <h2 style="text-align: center; color: #fff; margin-top: 0; margin-bottom: 16px; font-size: 30px;">הוראות למשימת הזיכרון</h2>
       
       <p style="font-size: 23px; margin-bottom: 12px;">
-        המשימה המרכזית של ניסוי זה היא <strong>משימת זיכרון</strong> די פשוטה.
+        המשימה המרכזית של ניסוי זה היא <strong>משימת זיכרון</strong>.
       </p>
 
       <p style="font-size: 22px; margin-bottom: 8px;">המשימה מורכבת משני סוגי תצוגה שונים:</p>
@@ -624,10 +654,38 @@ function screenIllustration(){
     screenTaskInstructions();
   };
 
+  // מעבר למסך ההוראות החדש לאימון במקום ישירות לספירה לאחור
   document.getElementById('illusGo').onclick = () => {
     if(miniCalibTimer) clearTimeout(miniCalibTimer);
-    countdown('practice');
+    screenPracticeInstructions();
   };
+}
+
+// 4. מסך הוראות לאימון (חדש – מופיע לאחר האילוסטרציה)
+function screenPracticeInstructions(){
+  if(miniCalibTimer) clearTimeout(miniCalibTimer);
+  document.onkeydown = null;
+  base(`
+    <div class="panel" style="max-width: 850px; text-align: center;">
+      <h2>הוראות לשלב האימון</h2>
+      <p style="font-size: 22px; line-height: 1.5; margin: 15px 0;">
+        כעת תבצע/י שלב אימון קצר על מנת לתרגל את המשימה.<br>
+        בשלב זה תקבל/י משוב מידי ("תשובה נכונה" / "תשובה שגויה" / "לאט מדי") לאחר כל תגובה.
+      </p>
+      ${picture('b_practice.jpg', 'slide')}
+      <div style="margin-top: 20px;">
+        <button class="btn" id="startPracBtn">התחל אימון</button>
+      </div>
+    </div>
+  `);
+
+  const img = document.querySelector('.panel img');
+  if(img) {
+    img.style.maxHeight = '40vh';
+    img.style.objectFit = 'contain';
+  }
+
+  document.getElementById('startPracBtn').onclick = () => countdown('practice');
 }
 
 // אנימציית כיול סדרתית (הנקודה מסתיימת -> הקו נפלט בהדרגה -> הנקודה הבאה מופיעה)
