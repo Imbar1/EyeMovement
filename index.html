@@ -479,7 +479,6 @@ function screen2(){
   base(`
     <div class="panel consent-choice">
       <h2>האם את/ה מרכיב/ה משקפיי ראייה מקרוב?</h2>
-      ${picture('glasses_YN.jpg', 'slide')}
       <div style="margin-top: 15px;">
         <button class="btn" id="yes">כן</button>
         <button class="btn no-btn" id="no">לא</button>
@@ -668,12 +667,16 @@ function screenPracticeInstructions(){
   
   base(`
     <div class="panel consent-choice" style="max-width: 900px; text-align: center;">
-      ${picture('b_practice.jpg', 'slide')}
+      <div style="font-size: 20px; line-height: 1.6; margin-bottom: 20px;">
+        <p style="margin-bottom: 10px;">כעת תבצע/י שלב אימון קצר על מנת לתרגל את המשימה.</p>
+        <p style="margin-bottom: 10px;">בשלב זה תקבל/י משוב מידי ("תשובה נכונה" / "תשובה שגויה" / "לאט מדי") לאחר כל תגובה.</p>
+        <p>במידה ותכשל/י באימון, תידרש/י לבצע אותו שוב.</p>
+      </div>
       <div style="margin-top: 15px;">
         <button class="btn no-btn" id="pracBackBtn">חזרה אחורה</button>
       </div>
       <p style="color: #002060; font-size: 26px; font-weight: bold; margin-top: 15px;">
-        כדי להתחיל את האימון לחץ על המקש "רווח"
+        כדי להתחיל את האימון יש ללחוץ על מקש "רווח"
       </p>
     </div>
   `);
