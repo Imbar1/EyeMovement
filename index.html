@@ -1263,27 +1263,34 @@ function downloadCSV(csvContent, fileName) {
 // Firebase Storage Save Flow
 // ==========================================
 function finishSavingScreen() {
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>קובצי ה-CSV נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
+  // הצגת מסך טעינה למשתתף
+  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
 
+  // 1. יצירת מחרוזות ה-CSV
   const csvSummary = buildSummaryCSV();
   const csvRaw = buildRawGazeCSV();
 
-  const summaryRef = storage.ref(`data/participant_${S.id}_summary.csv`);
-  const rawRef = storage.ref(`data/participant_${S.id}_raw_gaze.csv`);
-
-  Promise.all([
-    summaryRef.putString(csvSummary, 'raw', { contentType: 'text/csv' }),
-    rawRef.putString(csvRaw, 'raw', { contentType: 'text/csv' })
-  ])
+  // 2. שמירת הנתונים במסמך יחיד תחת הקולקציה 'participants'
+  db.collection('participants').doc(`participant_${S.id}`).set({
+    participantId: S.id,
+    age: S.age || null,
+    gender: S.gender || null,
+    summaryCSV: csvSummary,   // הטקסט המלא של ה-CSV הסיכומי
+    rawGazeCSV: csvRaw,       // הטקסט המלא של ה-CSV הגולמי
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
   .then(() => {
-    console.log("קובצי ה-CSV הועלו בהצלחה ל-Firebase Storage!");
-    finalScreen(false);
+    console.log("הנתונים נשמרו בהצלחה ב-Firestore!");
+    finalScreen(false); // מעבר למסך סיום בהצלחה
   })
   .catch((error) => {
-    console.error("שגיאה בהעלאת קובצי ה-CSV לענן:", error);
+    console.error("שגיאה בשמירת הנתונים ב-Firestore:", error);
+    
+    // במקרה של שגיאה ברשת - הורידי את הקבצים ישירות לדפדפן של המשתתף כדי שלא יאבדו
     downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
     downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
-    finalScreen(true);
+    
+    finalScreen(true); // מסך סיום עם הודעה על שגיאה
   });
 }
 
