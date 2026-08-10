@@ -97,6 +97,72 @@ h2{font-size:30px}
   100% { transform: scale(0); opacity: 0.1; }
 }
 
+/* עיצוב אילוסטרציית הרצף (Parallel Illustration) */
+.illus-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 96vw;
+  margin-top: 10px;
+}
+.illus-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 3px dashed #8B0000;
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(139,0,0,0.12);
+  position: relative;
+}
+.illus-warning-header {
+  color: #8B0000;
+  font-size: 26px;
+  font-weight: bold;
+  background: #ffffff;
+  padding: 6px 20px;
+  border-radius: 8px;
+  border: 2px solid #8B0000;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.mini-screen {
+  width: 19vw;
+  height: 28vh;
+  background: #808080;
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.arrow-sep {
+  font-size: 36px;
+  color: #002060;
+  font-weight: bold;
+  user-select: none;
+}
+@keyframes miniCalibAnim {
+  0%   { left: 50%; top: 50%; }
+  18%  { left: 10%; top: 10%; }
+  36%  { left: 90%; top: 10%; }
+  54%  { left: 90%; top: 90%; }
+  72%  { left: 10%; top: 90%; }
+  90%, 100% { left: 50%; top: 50%; }
+}
+.mini-calib-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #002060;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px #ffffff;
+  animation: miniCalibAnim 4.5s infinite linear;
+}
+
 .status{min-height:30px;color:#ffe66d}
 .selection-error{color:#9b3f3f;font-size:26px;font-weight:bold;min-height:34px}
 .rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
@@ -416,7 +482,91 @@ function choose(g){const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);bas
 function screen6(){choose('F')}
 function screen8(){choose('M')}
 let sl=1;
-function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;countdown('practice')}}})}
+function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;screenIllustration()}}})}
+
+// מסך אילוסטרציית הרצף המקבילי
+function screenIllustration(){
+  document.onkeydown=null;
+  base(`
+    <div class="illus-warning-header">⚠️ במסכים אלו אין להזיז את הראש כלל!!!</div>
+    
+    <div class="illus-row">
+      <!-- קבוצת שני המסכים (כיול + 4 פרצופים) תחת אזהרה -->
+      <div class="illus-group">
+        <!-- מסך 1: כיול בלולאה -->
+        <div class="mini-screen">
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+            <path d="M 50% 50% L 10% 10% L 90% 10% L 90% 90% L 10% 90% Z" stroke="#ffffff" stroke-dasharray="4 4" stroke-width="2" fill="none" opacity="0.6" />
+          </svg>
+          <div class="mini-calib-dot"></div>
+        </div>
+
+        <div class="arrow-sep">➔</div>
+
+        <!-- מסך 2: 4 פרצופים (P3, P5, P7, P1) -->
+        <div class="mini-screen">
+          ${picture('P3.webp', 'pos')}
+          ${picture('P5.webp', 'pos')}
+          ${picture('P7.webp', 'pos')}
+          ${picture('P1.webp', 'pos')}
+        </div>
+      </div>
+
+      <div class="arrow-sep">➔</div>
+
+      <!-- מסך 3: פלוס תחתון -->
+      <div class="mini-screen">
+        <div style="position:absolute;left:0;right:0;bottom:6%;font-family:Arial,sans-serif;font-size:32px;color:#fff;text-align:center;">+</div>
+      </div>
+
+      <div class="arrow-sep">➔</div>
+
+      <!-- מסך 4: Single Screen תגובה עם P1 -->
+      <div class="mini-screen">
+        <div style="position:absolute;top:4%;left:0;right:0;font-size:11px;font-weight:bold;text-align:center;color:#fff;padding:0 4px;">האם הפרצוף הזה הופיע במסך הקודם?</div>
+        ${picture('P1.webp', 'center')}
+        <div style="position:absolute;bottom:4%;left:6%;font-size:12px;font-weight:bold;color:#063b88;">E = לא</div>
+        <div style="position:absolute;bottom:4%;right:6%;font-size:12px;font-weight:bold;color:#063b88;">I = כן</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 18px; font-size: 21px; font-weight: bold; color: #fff; max-width: 900px; text-align: center; line-height: 1.4; background: rgba(0,0,0,0.25); padding: 12px 20px; border-radius: 10px;">
+      לדוגמא, במצב כזה, כדי לספק את התשובה הנכונה עלייך ללחוץ על האות "I" (=כן), מה שמציין כי בראד פיט אכן הופיע במסך הקודם!
+    </div>
+
+    <button class="btn" id="illusGo" style="margin-top: 15px;">המשך</button>
+  `);
+
+  // התאמת מיקומים מבוססת CSS עבור התמונות בתוך המיני-מסכים
+  const miniPos = [
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[0], left: '5%', top: '8%', w: '40%', h: '40%' },
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[1], left: '55%', top: '8%', w: '40%', h: '40%' },
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[2], left: '55%', top: '52%', w: '40%', h: '40%' },
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[3], left: '5%', top: '52%', w: '40%', h: '40%' }
+  ];
+  miniPos.forEach(p => {
+    if(p.el) {
+      p.el.style.position = 'absolute';
+      p.el.style.left = p.left;
+      p.el.style.top = p.top;
+      p.el.style.width = p.w;
+      p.el.style.height = p.h;
+      p.el.style.objectFit = 'contain';
+    }
+  });
+
+  const singleImg = document.querySelectorAll('.mini-screen')[3]?.querySelector('img');
+  if(singleImg) {
+    singleImg.style.position = 'absolute';
+    singleImg.style.left = '30%';
+    singleImg.style.top = '25%';
+    singleImg.style.width = '40%';
+    singleImg.style.height = '48%';
+    singleImg.style.objectFit = 'contain';
+  }
+
+  document.getElementById('illusGo').onclick = () => countdown('practice');
+}
 
 function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);const t=setInterval(()=>{n--;if(n<1){clearInterval(t);type==='practice'?practice():mainStart(type==='block2'?2:1)}else ct.textContent=n},1000)}
 
@@ -535,7 +685,6 @@ function run6PointCalibration(onComplete, isSimulation = false) {
       requestAnimationFrame(sampleLoop);
     };
 
-    // אם אנחנו בנקודה שנייה ואילך, נבצע מעבר חזותי של 0.4 שניות מנקודה קודמת לחדשה
     if (index > 0) {
       runTransition(points[index - 1], points[index], 400, startPointLogic);
     } else {
@@ -944,7 +1093,6 @@ function finishSavingScreen() {
   })
   .catch((error) => {
     console.error("שגיאה בהעלאת קובצי ה-CSV לענן:", error);
-    // מופעל אך ורק במקרה של שגיאה בענן: הורדה מקומית של קובצי ה-CSV
     downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
     downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
     finalScreen(true);
