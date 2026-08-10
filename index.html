@@ -102,30 +102,31 @@ h2{font-size:30px}
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  width: 96vw;
+  gap: 16px;
+  width: 98vw;
   margin-top: 10px;
 }
 .illus-group {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
   border: 3px dashed #8B0000;
   border-radius: 12px;
-  padding: 12px;
+  padding: 8px 14px 14px 14px;
   background: rgba(139,0,0,0.12);
   position: relative;
 }
 .illus-warning-header {
   color: #8B0000;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: bold;
   background: #ffffff;
-  padding: 6px 20px;
+  padding: 4px 18px;
   border-radius: 8px;
   border: 2px solid #8B0000;
   margin-bottom: 12px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  white-space: nowrap;
 }
 .mini-screen {
   width: 19vw;
@@ -143,24 +144,19 @@ h2{font-size:30px}
   font-weight: bold;
   user-select: none;
 }
-@keyframes miniCalibAnim {
-  0%   { left: 50%; top: 50%; }
-  18%  { left: 10%; top: 10%; }
-  36%  { left: 90%; top: 10%; }
-  54%  { left: 90%; top: 90%; }
-  72%  { left: 10%; top: 90%; }
-  90%, 100% { left: 50%; top: 50%; }
-}
-.mini-calib-dot {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: #ffffff;
-  border: 2px solid #002060;
+
+.mini-shrink-ring {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ffffff;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 8px #ffffff;
-  animation: miniCalibAnim 4.5s infinite linear;
+  position: absolute;
+  box-sizing: border-box;
+  animation: miniShrink 1.1s linear forwards;
+}
+@keyframes miniShrink {
+  0% { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0.1; }
 }
 
 .status{min-height:30px;color:#ffe66d}
@@ -208,11 +204,12 @@ const storage = firebase.storage();
 // Variables & Data Structures
 // ==========================================
 const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
-const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
+const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg','NoHeadMovements.png',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
 const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],cal1:0,cal2:0,calAcc1:0,calAcc2:0};
 const root=document.getElementById('app');
 
 let practiceErrors = 0;
+let miniCalibTimer = null;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -482,33 +479,80 @@ function choose(g){const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);bas
 function screen6(){choose('F')}
 function screen8(){choose('M')}
 let sl=1;
-function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;screenIllustration()}}})}
+function screen9(){const p=['SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg'];const navImage=sl===1?'only_forward.jpg':'back_and_forward.jpg';base(`${picture(p[sl-1],'slide')}<p>השתמש/י בחצים כדי לנווט</p>${picture(navImage,'keyboard-nav')}`);k(e=>{if(e.key==='ArrowLeft'&&sl>1){e.preventDefault();sl--;screen9()}else if(e.key==='ArrowRight'){e.preventDefault();if(sl<4){sl++;screen9()}else{document.onkeydown=null;screenTaskInstructions()}}})}
+
+// מסך הוראות מפורטות למשימה
+function screenTaskInstructions(){
+  document.onkeydown = null;
+  base(`
+    <div class="panel" style="text-align: right; max-width: 850px; line-height: 1.5; padding: 18px 28px;">
+      <h2 style="text-align: center; color: #fff; margin-top: 0; margin-bottom: 12px; font-size: 26px;">הוראות למשימת הזיכרון</h2>
+      
+      <p style="font-size: 20px; margin-bottom: 10px;">
+        המשימה המרכזית של ניסוי זה היא <strong>משימת זיכרון</strong> די פשוטה.
+      </p>
+
+      <p style="font-size: 19px; margin-bottom: 6px;">המשימה מורכבת משני סוגי תצוגה שונים:</p>
+      <ul style="font-size: 18px; margin-right: 15px; margin-bottom: 12px; line-height: 1.6; padding-right: 15px;">
+        <li><strong>1) מסך עם ארבעה פרצופים שונים</strong> (צפייה חופשית, לא נדרשת שום תגובה).</li>
+        <li><strong>2) מסך עם פרצוף אחד</strong> בו יהיה עליך להגיב, <em>מהר ככל הניתן</em>, האם:
+          <br>&nbsp;&nbsp;~ הפרצוף אכן הופיע במסך הקודם = לחיצה על האות <strong>"I"</strong> (= כן)
+          <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <strong>"E"</strong> (= לא)
+        </li>
+      </ul>
+
+      <p style="font-size: 17px; background: rgba(255,255,255,0.12); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;">
+        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל, <strong>בראש יציב וללא תנועות</strong>, על 6 נקודות שיתחלפו זו לאחר זו.<br>
+        בין המסכים יופיע הסימן <strong>+</strong> בתחתית המסך.
+      </p>
+
+      <div style="text-align: center; margin-top: 8px;">
+        <h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 20px;">חשוב מאוד:</h3>
+        ${picture('NoHeadMovements.png', '')}
+      </div>
+
+      <div style="text-align: center; margin-top: 10px;">
+        <button class="btn" id="taskInstGo">המשך</button>
+      </div>
+    </div>
+  `);
+
+  // התאמת גודל תמונת NoHeadMovements
+  const img = document.querySelector('.panel img');
+  if(img) {
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '22vh';
+    img.style.borderRadius = '8px';
+    img.style.objectFit = 'contain';
+  }
+
+  document.getElementById('taskInstGo').onclick = () => screenIllustration();
+}
 
 // מסך אילוסטרציית הרצף המקבילי
 function screenIllustration(){
+  if(miniCalibTimer) clearInterval(miniCalibTimer);
   document.onkeydown=null;
+
   base(`
-    <div class="illus-warning-header">⚠️ במסכים אלו אין להזיז את הראש כלל!!!</div>
-    
     <div class="illus-row">
       <!-- קבוצת שני המסכים (כיול + 4 פרצופים) תחת אזהרה -->
       <div class="illus-group">
-        <!-- מסך 1: כיול בלולאה -->
-        <div class="mini-screen">
-          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
-            <path d="M 50% 50% L 10% 10% L 90% 10% L 90% 90% L 10% 90% Z" stroke="#ffffff" stroke-dasharray="4 4" stroke-width="2" fill="none" opacity="0.6" />
-          </svg>
-          <div class="mini-calib-dot"></div>
-        </div>
+        <div class="illus-warning-header">⚠️ במסכים אלו אין להזיז את הראש כלל!!!</div>
+        
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <!-- מסך 1: כיול בלולאה -->
+          <div class="mini-screen" id="miniCalibContainer"></div>
 
-        <div class="arrow-sep">➔</div>
+          <div class="arrow-sep">➔</div>
 
-        <!-- מסך 2: 4 פרצופים (P3, P5, P7, P1) -->
-        <div class="mini-screen">
-          ${picture('P3.webp', 'pos')}
-          ${picture('P5.webp', 'pos')}
-          ${picture('P7.webp', 'pos')}
-          ${picture('P1.webp', 'pos')}
+          <!-- מסך 2: 4 פרצופים (P3, P5, P7, P1) -->
+          <div class="mini-screen">
+            ${picture('P3.webp', 'pos')}
+            ${picture('P5.webp', 'pos')}
+            ${picture('P7.webp', 'pos')}
+            ${picture('P1.webp', 'pos')}
+          </div>
         </div>
       </div>
 
@@ -516,33 +560,33 @@ function screenIllustration(){
 
       <!-- מסך 3: פלוס תחתון -->
       <div class="mini-screen">
-        <div style="position:absolute;left:0;right:0;bottom:6%;font-family:Arial,sans-serif;font-size:32px;color:#fff;text-align:center;">+</div>
+        <div style="position:absolute;left:0;right:0;bottom:6%;font-family:Arial,sans-serif;font-size:38px;color:#fff;text-align:center;">+</div>
       </div>
 
       <div class="arrow-sep">➔</div>
 
       <!-- מסך 4: Single Screen תגובה עם P1 -->
       <div class="mini-screen">
-        <div style="position:absolute;top:4%;left:0;right:0;font-size:11px;font-weight:bold;text-align:center;color:#fff;padding:0 4px;">האם הפרצוף הזה הופיע במסך הקודם?</div>
+        <div style="position:absolute;top:6%;left:4%;right:4%;font-size:14px;font-weight:bold;text-align:center;color:#fff;line-height:1.25;">האם הפרצוף הזה הופיע במסך הקודם?</div>
         ${picture('P1.webp', 'center')}
-        <div style="position:absolute;bottom:4%;left:6%;font-size:12px;font-weight:bold;color:#063b88;">E = לא</div>
-        <div style="position:absolute;bottom:4%;right:6%;font-size:12px;font-weight:bold;color:#063b88;">I = כן</div>
+        <div style="position:absolute;bottom:6%;left:6%;font-size:15px;font-weight:bold;color:#fff;">E = לא</div>
+        <div style="position:absolute;bottom:6%;right:6%;font-size:15px;font-weight:bold;color:#fff;">I = כן</div>
       </div>
     </div>
 
-    <div style="margin-top: 18px; font-size: 21px; font-weight: bold; color: #fff; max-width: 900px; text-align: center; line-height: 1.4; background: rgba(0,0,0,0.25); padding: 12px 20px; border-radius: 10px;">
+    <div style="margin-top: 18px; font-size: 20px; font-weight: bold; color: #fff; max-width: 900px; text-align: center; line-height: 1.4; background: rgba(0,0,0,0.3); padding: 12px 22px; border-radius: 10px;">
       לדוגמא, במצב כזה, כדי לספק את התשובה הנכונה עלייך ללחוץ על האות "I" (=כן), מה שמציין כי בראד פיט אכן הופיע במסך הקודם!
     </div>
 
-    <button class="btn" id="illusGo" style="margin-top: 15px;">המשך</button>
+    <button class="btn" id="illusGo" style="margin-top: 14px;">המשך</button>
   `);
 
   // התאמת מיקומים מבוססת CSS עבור התמונות בתוך המיני-מסכים
   const miniPos = [
     { el: document.querySelectorAll('.mini-screen')[1]?.children[0], left: '5%', top: '8%', w: '40%', h: '40%' },
     { el: document.querySelectorAll('.mini-screen')[1]?.children[1], left: '55%', top: '8%', w: '40%', h: '40%' },
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[2], left: '55%', top: '52%', w: '40%', h: '40%' },
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[3], left: '5%', top: '52%', w: '40%', h: '40%' }
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[2], left: '5%', top: '52%', w: '40%', h: '40%' },
+    { el: document.querySelectorAll('.mini-screen')[1]?.children[3], left: '55%', top: '52%', w: '40%', h: '40%' }
   ];
   miniPos.forEach(p => {
     if(p.el) {
@@ -558,14 +602,63 @@ function screenIllustration(){
   const singleImg = document.querySelectorAll('.mini-screen')[3]?.querySelector('img');
   if(singleImg) {
     singleImg.style.position = 'absolute';
-    singleImg.style.left = '30%';
-    singleImg.style.top = '25%';
-    singleImg.style.width = '40%';
+    singleImg.style.left = '28%';
+    singleImg.style.top = '26%';
+    singleImg.style.width = '44%';
     singleImg.style.height = '48%';
     singleImg.style.objectFit = 'contain';
   }
 
-  document.getElementById('illusGo').onclick = () => countdown('practice');
+  // הפעלת אנימציית הכיול המדויקת בתוך מסך הכיול המזערי
+  startMiniCalibAnimation();
+
+  document.getElementById('illusGo').onclick = () => {
+    if(miniCalibTimer) clearInterval(miniCalibTimer);
+    countdown('practice');
+  };
+}
+
+// פונקציית אנימציה מחזורית למסך הכיול המזערי
+function startMiniCalibAnimation() {
+  const container = document.getElementById('miniCalibContainer');
+  if(!container) return;
+
+  const pts = [
+    {x: 50, y: 50}, // 1. מרכז
+    {x: 10, y: 10}, // 2. שמאל-למעלה
+    {x: 90, y: 10}, // 3. ימין-למעלה
+    {x: 90, y: 90}, // 4. ימין-למטה
+    {x: 10, y: 90}, // 5. שמאל-למטה
+    {x: 50, y: 50}  // 6. חזרה למרכז
+  ];
+
+  let idx = 0;
+
+  function renderStep() {
+    if(!document.getElementById('miniCalibContainer')) {
+      if(miniCalibTimer) clearInterval(miniCalibTimer);
+      return;
+    }
+
+    const pt = pts[idx];
+    const prevPt = pts[(idx - 1 + pts.length) % pts.length];
+
+    container.innerHTML = `
+      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+        <path d="M 50% 50% L 10% 10% L 90% 10% L 90% 90% L 10% 90% Z" stroke="#ffffff" stroke-dasharray="3 3" stroke-width="1.5" fill="none" opacity="0.5" />
+        <line x1="${prevPt.x}%" y1="${prevPt.y}%" x2="${pt.x}%" y2="${pt.y}%" stroke="#ffffff" stroke-dasharray="2 2" stroke-width="2" opacity="0.9" />
+      </svg>
+      <div style="position:absolute;left:${pt.x}%;top:${pt.y}%;transform:translate(-50%,-50%);width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
+        <div style="width:6px;height:6px;background:#ffffff;border:1px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 6px #ffffff;"></div>
+        <div class="mini-shrink-ring"></div>
+      </div>
+    `;
+
+    idx = (idx + 1) % pts.length;
+  }
+
+  renderStep();
+  miniCalibTimer = setInterval(renderStep, 1250);
 }
 
 function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);const t=setInterval(()=>{n--;if(n<1){clearInterval(t);type==='practice'?practice():mainStart(type==='block2'?2:1)}else ct.textContent=n},1000)}
