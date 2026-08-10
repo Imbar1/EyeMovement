@@ -474,11 +474,11 @@ async function preload(){
 function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
 
-// 1. מסך משקפיים מעודכן (משלב את תמונת הדימוי מנכסי הניסוי)
+// 1. מסך משקפיים (מעודכן)
 function screen2(){
   base(`
     <div class="panel consent-choice">
-      <h2>האם את/ה מרכיב/ה משקפיים?</h2>
+      <h2>האם את/ה מרכיב/ה משקפיי ראייה מקרוב?</h2>
       ${picture('glasses_YN.jpg', 'slide')}
       <div style="margin-top: 15px;">
         <button class="btn" id="yes">כן</button>
@@ -495,7 +495,7 @@ function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b"
 function screen5(){instr('b_women_pics.jpg','screen6')}
 function screen7(){instr('b_men_pics.jpg','screen8')}
 
-// 2. הסרת שלב ההוראות (מעבר ישיר מבחירת פרצופי הגברים למסך הוראות המשימה)
+// 2. הסרת שלב ההוראות (מעבר ישיר מבחירת הפרצופים למסך הוראות המשימה)
 function choose(g){
   const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);
   base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);
@@ -515,29 +515,38 @@ function choose(g){
 function screen6(){choose('F')}
 function screen8(){choose('M')}
 
-// 3. מסך הוראות המשימה (מורחב ומעודכן)
+// 3. מסך הוראות המשימה (מעודכן לפי המפרט המדויק)
 function screenTaskInstructions(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   document.onkeydown = null;
   base(`
-    <div class="panel" style="text-align: right; max-width: 920px; line-height: 1.6; padding: 22px 32px;">
-      <h2 style="text-align: center; color: #fff; margin-top: 0; margin-bottom: 16px; font-size: 30px;">הוראות למשימת הזיכרון</h2>
-      
-      <p style="font-size: 23px; margin-bottom: 12px;">
-        המשימה המרכזית של ניסוי זה היא <strong>משימת זיכרון</strong>.
+    <div class="panel" style="text-align: right; max-width: 900px; line-height: 1.5; padding: 20px 30px;">
+      <p style="font-size: 22px; margin-bottom: 12px; font-weight: bold; text-align: center;">
+        המשימה המרכזית של ניסוי זה היא משימת זיכרון די פשוטה.
       </p>
 
-      <p style="font-size: 22px; margin-bottom: 8px;">המשימה מורכבת משני סוגי תצוגה שונים:</p>
-      <ul style="font-size: 21px; margin-right: 15px; margin-bottom: 14px; line-height: 1.65; padding-right: 15px;">
-        <li><strong>1) מסך עם ארבעה פרצופים שונים</strong> (צפייה חופשית, לא נדרשת שום תגובה).</li>
-        <li><strong>2) מסך עם פרצוף אחד</strong> בו יהיה עליך <u style="text-decoration: underline;">להגיב</u>, <span style="color: #8B0000; font-weight: bold;">מהר ככל הניתן</span>, האם:
+      <p style="font-size: 20px; margin-bottom: 12px;">
+        • בניסוי יהיו שני סשנים: אחד שיכלול רק פרצופים של נשים ואחד שיכלול רק פרצופים של גברים (הסדר נקבע באופן אקראי). בין הסשנים תוכל/י לקחת כמה שניות לרענן את העיניים.
+      </p>
+
+      <p style="font-size: 20px; margin-bottom: 8px;">כל פעם יופיעו שתי תצוגות מרכזיות:</p>
+      <ul style="font-size: 19px; margin-right: 20px; margin-bottom: 12px; line-height: 1.5; list-style-type: disc;">
+        <li><strong>מסך עם ארבעה פרצופים שונים</strong> (צפייה חופשית, לא נדרשת שום תגובה).</li>
+        <li><strong>מסך עם פרצוף אחד</strong> בו יהיה עליך להגיב, מהר ככל הניתן, האם:
           <br>&nbsp;&nbsp;~ הפרצוף אכן הופיע במסך הקודם = לחיצה על האות <span style="color: #002060; font-weight: bold;">"I" (= כן)</span>
           <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <span style="color: #002060; font-weight: bold;">"E" (= לא)</span>
         </li>
       </ul>
 
-      <p style="font-size: 19px; background: rgba(255,255,255,0.12); padding: 12px 16px; border-radius: 8px; margin-bottom: 14px;">
-        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל, <strong>בראש יציב וללא תנועות</strong>, על 6 נקודות שיתחלפו זו לאחר זו.<br>
+      <p style="font-size: 20px; margin-bottom: 12px;">
+        • פעולה זו תחזור על עצמה כמה וכמה פעמים.
+      </p>
+
+      <p style="font-size: 19px; margin-bottom: 10px;">
+        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל, בראש יציב וללא תנועות, על 6 נקודות שיתחלפו זו לאחר זו.
+      </p>
+
+      <p style="font-size: 19px; margin-bottom: 14px;">
         בין המסכים יופיע הסימן <strong>+</strong> בתחתית המסך.
       </p>
 
@@ -555,7 +564,7 @@ function screenTaskInstructions(){
   const img = document.querySelector('.panel img');
   if(img) {
     img.style.maxWidth = '100%';
-    img.style.maxHeight = '21vh';
+    img.style.maxHeight = '20vh';
     img.style.borderRadius = '8px';
     img.style.objectFit = 'contain';
   }
@@ -563,24 +572,21 @@ function screenTaskInstructions(){
   document.getElementById('taskInstGo').onclick = () => screenIllustration();
 }
 
-// מסך אילוסטרציית הרצף (משמאל לימין: כיול > 4 פרצופים > פלוס > פרצוף יחיד)
+// מסך אילוסטרציית הרצף (משמאל לימין)
 function screenIllustration(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   document.onkeydown=null;
 
   base(`
     <div class="illus-row">
-      <!-- קבוצת שני המסכים (כיול + 4 פרצופים) תחת אזהרת ראש -->
       <div class="illus-group">
         <div class="illus-warning-header">⚠️ במסכים אלו אין להזיז את הראש כלל!!!</div>
         
         <div style="display: flex; gap: 14px; align-items: center; direction: ltr;">
-          <!-- מסך 1 (שמאל): כיול בלולאה -->
           <div class="mini-screen" id="miniCalibContainer"></div>
 
           <div class="arrow-sep">➔</div>
 
-          <!-- מסך 2: 4 פרצופים (P3, P5, P7, P1) -->
           <div class="mini-screen">
             ${picture('P3.webp', 'pos')}
             ${picture('P5.webp', 'pos')}
@@ -592,14 +598,12 @@ function screenIllustration(){
 
       <div class="arrow-sep">➔</div>
 
-      <!-- מסך 3: פלוס תחתון -->
       <div class="mini-screen">
         <div style="position:absolute;left:0;right:0;bottom:6%;font-family:Arial,sans-serif;font-size:38px;color:#fff;text-align:center;">+</div>
       </div>
 
       <div class="arrow-sep">➔</div>
 
-      <!-- מסך 4 (ימין): Single Screen תגובה עם P1 (מקשים בכחול כהה) -->
       <div class="mini-screen">
         <div style="position:absolute;top:6%;left:4%;right:4%;font-size:14px;font-weight:bold;text-align:center;color:#fff;line-height:1.25;">האם הפרצוף הזה הופיע במסך הקודם?</div>
         ${picture('P1.webp', 'center')}
@@ -618,7 +622,6 @@ function screenIllustration(){
     </div>
   `);
 
-  // התאמת מיקומים יחסית בתוך המיני-מסכים
   const miniPos = [
     { el: document.querySelectorAll('.mini-screen')[1]?.children[0], left: '5%', top: '8%', w: '40%', h: '40%' },
     { el: document.querySelectorAll('.mini-screen')[1]?.children[1], left: '55%', top: '8%', w: '40%', h: '40%' },
@@ -646,7 +649,6 @@ function screenIllustration(){
     singleImg.style.objectFit = 'contain';
   }
 
-  // הפעלת אנימציית הכיול הסדרתית
   startMiniCalibAnimation();
 
   document.getElementById('illusBack').onclick = () => {
@@ -654,7 +656,6 @@ function screenIllustration(){
     screenTaskInstructions();
   };
 
-  // מעבר למסך ההוראות החדש לאימון במקום ישירות לספירה לאחור
   document.getElementById('illusGo').onclick = () => {
     if(miniCalibTimer) clearTimeout(miniCalibTimer);
     screenPracticeInstructions();
@@ -664,42 +665,43 @@ function screenIllustration(){
 // 4. מסך הוראות לאימון (חדש – מופיע לאחר האילוסטרציה)
 function screenPracticeInstructions(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
-  document.onkeydown = null;
+  
   base(`
-    <div class="panel" style="max-width: 850px; text-align: center;">
-      <h2>הוראות לשלב האימון</h2>
-      <p style="font-size: 22px; line-height: 1.5; margin: 15px 0;">
-        כעת תבצע/י שלב אימון קצר על מנת לתרגל את המשימה.<br>
-        בשלב זה תקבל/י משוב מידי ("תשובה נכונה" / "תשובה שגויה" / "לאט מדי") לאחר כל תגובה.
-      </p>
+    <div class="panel consent-choice" style="max-width: 900px; text-align: center;">
       ${picture('b_practice.jpg', 'slide')}
-      <div style="margin-top: 20px;">
-        <button class="btn" id="startPracBtn">התחל אימון</button>
+      <div style="margin-top: 15px;">
+        <button class="btn no-btn" id="pracBackBtn">חזרה אחורה</button>
       </div>
+      <p style="color: #002060; font-size: 26px; font-weight: bold; margin-top: 15px;">
+        כדי להתחיל את האימון לחץ על המקש "רווח"
+      </p>
     </div>
   `);
 
-  const img = document.querySelector('.panel img');
-  if(img) {
-    img.style.maxHeight = '40vh';
-    img.style.objectFit = 'contain';
-  }
+  document.getElementById('pracBackBtn').onclick = () => {
+    document.onkeydown = null;
+    screenIllustration();
+  };
 
-  document.getElementById('startPracBtn').onclick = () => countdown('practice');
+  k(e => {
+    if(e.code === 'Space' || e.key === ' ') {
+      document.onkeydown = null;
+      countdown('practice');
+    }
+  });
 }
 
-// אנימציית כיול סדרתית (הנקודה מסתיימת -> הקו נפלט בהדרגה -> הנקודה הבאה מופיעה)
 function startMiniCalibAnimation() {
   const container = document.getElementById('miniCalibContainer');
   if(!container) return;
 
   const pts = [
-    { x: 50, y: 50 }, // 1. מרכז
-    { x: 15, y: 15 }, // 2. שמאל-למעלה
-    { x: 85, y: 15 }, // 3. ימין-למעלה
-    { x: 85, y: 85 }, // 4. ימין-למטה
-    { x: 15, y: 85 }, // 5. שמאל-למטה
-    { x: 50, y: 50 }  // 6. חזרה למרכז
+    { x: 50, y: 50 },
+    { x: 15, y: 15 },
+    { x: 85, y: 15 },
+    { x: 85, y: 85 },
+    { x: 15, y: 85 },
+    { x: 50, y: 50 }
   ];
 
   let stepIdx = 0;
@@ -710,7 +712,6 @@ function startMiniCalibAnimation() {
     const curr = pts[stepIdx];
     const next = pts[(stepIdx + 1) % pts.length];
 
-    // שלב 1: הצגת הנקודה הנוכחית עם טבעת מתכווצת
     container.innerHTML = `
       <div style="position:absolute;left:${curr.x}%;top:${curr.y}%;transform:translate(-50%,-50%);width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
         <div style="width:7px;height:7px;background:#ffffff;border:1px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 6px #ffffff;"></div>
@@ -718,14 +719,13 @@ function startMiniCalibAnimation() {
       </div>
     `;
 
-    // כעבור 650ms (סיום התכווצות הנקודה), מתחילים במתיחת הקו המקווקו בהדרגה
     miniCalibTimer = setTimeout(() => {
       let progress = 0;
 
       function drawLineStep() {
         if(!document.getElementById('miniCalibContainer')) return;
 
-        progress += 0.10; // מהירות התקדמות הקו
+        progress += 0.10;
         if(progress > 1) progress = 1;
 
         const curX = curr.x + (next.x - curr.x) * progress;
@@ -741,7 +741,6 @@ function startMiniCalibAnimation() {
         if(progress < 1) {
           miniCalibTimer = setTimeout(drawLineStep, 35);
         } else {
-          // הקו הגיע ליעדו -> מעבר לנקודה הבאה
           stepIdx = (stepIdx + 1) % pts.length;
           miniCalibTimer = setTimeout(playStep, 100);
         }
@@ -803,12 +802,12 @@ function run6PointCalibration(onComplete, isSimulation = false) {
   document.getElementById('cameraPopup')?.classList.remove('show');
 
   const points = [
-    { x: 50, y: 50 }, // 1. מרכז
-    { x: 10, y: 10 }, // 2. שמאל-למעלה
-    { x: 90, y: 10 }, // 3. ימין-למעלה
-    { x: 90, y: 90 }, // 4. ימין-למטה
-    { x: 10, y: 90 }, // 5. שמאל-למטה
-    { x: 50, y: 50 }  // 6. חזרה למרכז
+    { x: 50, y: 50 },
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 90, y: 90 },
+    { x: 10, y: 90 },
+    { x: 50, y: 50 }
   ];
 
   if (!isSimulation) {
