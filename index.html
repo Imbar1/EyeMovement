@@ -97,7 +97,6 @@ h2{font-size:30px}
   100% { transform: scale(0); opacity: 0.1; }
 }
 
-/* עיצוב אילוסטרציית הרצף משמאל לימין */
 .illus-row {
   display: flex;
   flex-direction: row;
@@ -209,11 +208,12 @@ const storage = firebase.storage();
 // ==========================================
 const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
 const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg','NoHeadMovements.png',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
-const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],cal1:0,cal2:0,calAcc1:0,calAcc2:0};
+const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],practiceRunCount:0};
 const root=document.getElementById('app');
 
 let practiceErrors = 0;
 let miniCalibTimer = null;
+let forceShowPopupUntil = 0;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -411,6 +411,7 @@ function initFaceMeshSystem() {
 
       const nose = lm[1];
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
+      const isForceShown = performance.now() < forceShowPopupUntil;
 
       if (centered) {
         isAligned = true;
@@ -419,7 +420,9 @@ function initFaceMeshSystem() {
         statusTxt.textContent = 'הפנים זוהו';
 
         if (!goodStateStartTime) goodStateStartTime = performance.now();
-        if (performance.now() - goodStateStartTime >= 200) {
+        if (isForceShown) {
+          popup.classList.add('show');
+        } else if (performance.now() - goodStateStartTime >= 200) {
           popup.classList.remove('show');
         }
       } else {
@@ -474,7 +477,6 @@ async function preload(){
 function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
 function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
 
-// 1. מסך משקפיים (מעודכן)
 function screen2(){
   base(`
     <div class="panel consent-choice">
@@ -494,7 +496,6 @@ function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b"
 function screen5(){instr('b_women_pics.jpg','screen6')}
 function screen7(){instr('b_men_pics.jpg','screen8')}
 
-// 2. הסרת שלב ההוראות (מעבר ישיר מבחירת הפרצופים למסך הוראות המשימה)
 function choose(g){
   const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);
   base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);
@@ -514,7 +515,6 @@ function choose(g){
 function screen6(){choose('F')}
 function screen8(){choose('M')}
 
-// 3. מסך הוראות המשימה (מעודכן לפי המפרט המדויק)
 function screenTaskInstructions(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   document.onkeydown = null;
@@ -571,7 +571,6 @@ function screenTaskInstructions(){
   document.getElementById('taskInstGo').onclick = () => screenIllustration();
 }
 
-// מסך אילוסטרציית הרצף (משמאל לימין)
 function screenIllustration(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   document.onkeydown=null;
@@ -661,7 +660,6 @@ function screenIllustration(){
   };
 }
 
-// 4. מסך הוראות לאימון (חדש – מופיע לאחר האילוסטרציה)
 function screenPracticeInstructions(){
   if(miniCalibTimer) clearTimeout(miniCalibTimer);
   
@@ -897,14 +895,14 @@ function trial(row, done, isPractice = false){
 
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response(row,done),3000);
+          setTimeout(()=>response(row,done, true),3000);
         },5000);
       });
     }).catch(err=>{console.error('Trial preload failed',err);if(typeof done==='function')done();});
   }, isPractice);
 }
 
-function response(row,done){
+function response(row, done, isPractice = false, trialMeta = null){
   const singleName=String(row[4]).endsWith('.webp')?String(row[4]):String(row[4])+'.webp';
   base(`${picture(singleName,'center')}<div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div><div class="keys"><span class="yes">I = כן</span><span class="no">E = לא</span></div>`);
   const t=performance.now();
@@ -926,8 +924,24 @@ function response(row,done){
       practiceErrors++;
     }
 
-    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:performance.now()-t,key:q,correct:isCorrect});
-    autoSavePartial();
+    if (!showFeedback && trialMeta) {
+      S.trials.push({
+        phase: 'main',
+        block: trialMeta.block,
+        trial: trialMeta.trial,
+        ffi: trialMeta.ffi,
+        ffl: trialMeta.ffl,
+        singleStimulus: trialMeta.singleStimulus,
+        isFamiliarStimulus: trialMeta.isFamiliarStimulus,
+        expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
+        correctKey: trialMeta.correctKey,
+        key: q,
+        correct: isCorrect,
+        timeout: false,
+        rt: performance.now() - t
+      });
+      autoSavePartial();
+    }
 
     const finishAnswer=()=>{if(typeof done==='function')done()};
     if(showFeedback){base(`<h2 style="color:${isCorrect?'#00a83b':'#b32626'}">${isCorrect?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
@@ -942,8 +956,24 @@ function response(row,done){
       practiceErrors++;
     }
 
-    S.trials.push({phase:(showFeedback ? 'practice' : 'main'),rt:null,key:null,correct:false,timeout:true});
-    autoSavePartial();
+    if (!showFeedback && trialMeta) {
+      S.trials.push({
+        phase: 'main',
+        block: trialMeta.block,
+        trial: trialMeta.trial,
+        ffi: trialMeta.ffi,
+        ffl: trialMeta.ffl,
+        singleStimulus: trialMeta.singleStimulus,
+        isFamiliarStimulus: trialMeta.isFamiliarStimulus,
+        expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
+        correctKey: trialMeta.correctKey,
+        key: null,
+        correct: false,
+        timeout: true,
+        rt: null
+      });
+      autoSavePartial();
+    }
 
     if(showFeedback){base('<h2 style="color:#9b3f3f">לאט מידי</h2>');setTimeout(()=>{if(typeof done==='function')done()},700)}
     else if(typeof done==='function')done()
@@ -954,6 +984,7 @@ function response(row,done){
 function practice(){
   showFeedback=true;
   practiceErrors=0;
+  S.practiceRunCount = (S.practiceRunCount || 0) + 1;
   document.body.style.cursor = 'none';
   let i=0,finished=false;
   const go=()=>{
@@ -999,6 +1030,10 @@ function screen12(block=1){
 }
 
 function screenFaceSetup(block){
+  forceShowPopupUntil = performance.now() + 3000;
+  const popup = document.getElementById('cameraPopup');
+  if (popup) popup.classList.add('show');
+
   base(`
     <div class="panel">
       <h2>אימות מיקום הפנים - חלק ${block}</h2>
@@ -1011,6 +1046,7 @@ function screenFaceSetup(block){
     if (!document.fullscreenElement) {
       enterFullscreen();
     }
+    forceShowPopupUntil = 0;
     document.getElementById('cameraPopup')?.classList.remove('show');
     screen13(block);
   }
@@ -1041,39 +1077,39 @@ function mainStart(block){
   const f1=familiar[0]||`${sex}1.webp`,f2=familiar[1]||`${sex}2.webp`;
   
   const rows=sex==='F'?[
-    {ffi:1,p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'],s:'UNf6.webp',c:'e'},
-    {ffi:1,p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'],s:f1,c:'i'},
-    {ffi:1,p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'],s:'UNf5.webp',c:'e'},
-    {ffi:1,p:['UNf7.webp','UNf8.webp','UNf3.webp',f1],s:'UNf3.webp',c:'i'},
-    {ffi:1,p:[f2,'UNf10.webp','UNf9.webp','UNf7.webp'],s:'UNf4.webp',c:'e'},
-    {ffi:1,p:['UNf8.webp',f2,'UNf4.webp','UNf12.webp'],s:f2,c:'i'},
-    {ffi:1,p:['UNf3.webp','UNf6.webp',f2,'UNf13.webp'],s:'UNf2.webp',c:'e'},
-    {ffi:1,p:['UNf11.webp','UNf2.webp','UNf1.webp',f2],s:'UNf1.webp',c:'i'},
-    {ffi:0,p:['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'],s:'UNf3.webp',c:'e'},
-    {ffi:0,p:['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'],s:'UNf6.webp',c:'i'},
-    {ffi:0,p:['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'],s:'UNf1.webp',c:'e'},
-    {ffi:0,p:['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'],s:'UNf5.webp',c:'i'},
-    {ffi:0,p:['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'],s:f1,c:'e'},
-    {ffi:0,p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'],s:'UNf4.webp',c:'i'},
-    {ffi:0,p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'],s:f2,c:'e'},
-    {ffi:0,p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'],s:'UNf2.webp',c:'i'}
+    {ffi:1, ffl:1, p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'], s:'UNf6.webp', c:'e'},
+    {ffi:1, ffl:2, p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'], s:f1, c:'i'},
+    {ffi:1, ffl:3, p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'], s:'UNf5.webp', c:'e'},
+    {ffi:1, ffl:4, p:['UNf7.webp','UNf8.webp','UNf3.webp',f1], s:'UNf3.webp', c:'i'},
+    {ffi:1, ffl:1, p:[f2,'UNf10.webp','UNf9.webp','UNf7.webp'], s:'UNf4.webp', c:'e'},
+    {ffi:1, ffl:2, p:['UNf8.webp',f2,'UNf4.webp','UNf12.webp'], s:f2, c:'i'},
+    {ffi:1, ffl:3, p:['UNf3.webp','UNf6.webp',f2,'UNf13.webp'], s:'UNf2.webp', c:'e'},
+    {ffi:1, ffl:4, p:['UNf11.webp','UNf2.webp','UNf1.webp',f2], s:'UNf1.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'], s:'UNf3.webp', c:'e'},
+    {ffi:0, ffl:0, p:['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'], s:'UNf6.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'], s:'UNf1.webp', c:'e'},
+    {ffi:0, ffl:0, p:['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'], s:'UNf5.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'], s:f1, c:'e'},
+    {ffi:0, ffl:0, p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'], s:'UNf4.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'], s:f2, c:'e'},
+    {ffi:0, ffl:0, p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'], s:'UNf2.webp', c:'i'}
   ].sort(()=>Math.random()-.5):[
-    {ffi:1,p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'],s:'UNm6.webp',c:'e'},
-    {ffi:1,p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'],s:f1,c:'i'},
-    {ffi:1,p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'],s:'UNm5.webp',c:'e'},
-    {ffi:1,p:['UNm7.webp','UNm8.webp','UNm3.webp',f1],s:'UNm3.webp',c:'i'},
-    {ffi:1,p:[f2,'UNm10.webp','UNm9.webp','UNm7.webp'],s:'UNm4.webp',c:'e'},
-    {ffi:1,p:['UNm8.webp',f2,'UNm4.webp','UNm12.webp'],s:f2,c:'i'},
-    {ffi:1,p:['UNm3.webp','UNm6.webp',f2,'UNm13.webp'],s:'UNm2.webp',c:'e'},
-    {ffi:1,p:['UNm11.webp','UNm2.webp','UNm1.webp',f2],s:'UNm1.webp',c:'i'},
-    {ffi:0,p:['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'],s:'UNm3.webp',c:'e'},
-    {ffi:0,p:['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'],s:'UNm6.webp',c:'i'},
-    {ffi:0,p:['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'],s:'UNm1.webp',c:'e'},
-    {ffi:0,p:['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'],s:'UNm5.webp',c:'i'},
-    {ffi:0,p:['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'],s:f1,c:'e'},
-    {ffi:0,p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'],s:'UNm4.webp',c:'i'},
-    {ffi:0,p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'],s:f2,c:'e'},
-    {ffi:0,p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'],s:'UNm2.webp',c:'i'}
+    {ffi:1, ffl:1, p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'], s:'UNm6.webp', c:'e'},
+    {ffi:1, ffl:2, p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'], s:f1, c:'i'},
+    {ffi:1, ffl:3, p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'], s:'UNm5.webp', c:'e'},
+    {ffi:1, ffl:4, p:['UNm7.webp','UNm8.webp','UNm3.webp',f1], s:'UNm3.webp', c:'i'},
+    {ffi:1, ffl:1, p:[f2,'UNm10.webp','UNm9.webp','UNm7.webp'], s:'UNm4.webp', c:'e'},
+    {ffi:1, ffl:2, p:['UNm8.webp',f2,'UNm4.webp','UNm12.webp'], s:f2, c:'i'},
+    {ffi:1, ffl:3, p:['UNm3.webp','UNm6.webp',f2,'UNm13.webp'], s:'UNm2.webp', c:'e'},
+    {ffi:1, ffl:4, p:['UNm11.webp','UNm2.webp','UNm1.webp',f2], s:'UNm1.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'], s:'UNm3.webp', c:'e'},
+    {ffi:0, ffl:0, p:['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'], s:'UNm6.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'], s:'UNm1.webp', c:'e'},
+    {ffi:0, ffl:0, p:['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'], s:'UNm5.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'], s:f1, c:'e'},
+    {ffi:0, ffl:0, p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'], s:'UNm4.webp', c:'i'},
+    {ffi:0, ffl:0, p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'], s:f2, c:'e'},
+    {ffi:0, ffl:0, p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'], s:'UNm2.webp', c:'i'}
   ].sort(()=>Math.random()-.5);
 
   let trialIndex=0;
@@ -1098,11 +1134,19 @@ function mainStart(block){
         base(`<div class="trial-grid">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
         
         const t0=performance.now();
-        track(t0, sex, tno, r.ffi);
+        track(t0, sex, tno, r.ffi, r.ffl);
 
         setTimeout(()=>{
           base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response([...faces,r.s,r.c],go),3000);
+          setTimeout(()=>response([...faces,r.s,r.c], go, false, {
+            block: sex,
+            trial: tno,
+            ffi: r.ffi,
+            ffl: r.ffl,
+            singleStimulus: r.s,
+            isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
+            correctKey: r.c
+          }), 3000);
         },5000);
       }).catch(err=>{console.error('Main trial preload failed',err);go();});
     }, false);
@@ -1110,23 +1154,29 @@ function mainStart(block){
   go();
 }
 
-function track(t0, sex, trial, ffi){
+function track(t0, sex, trial, ffi, ffl){
   const stopAt=t0+5000;
   const f=()=>{
     const now=performance.now();
     if(now>=stopAt)return;
     
     const gaze = predictGaze();
-    let normX = null, normY = null, quadrant = null;
+    let normX = null, normY = null, quadrant = null, gaze_location = null, eof = 0;
 
     if (gaze && gaze.x !== null && gaze.y !== null) {
       normX = gaze.x / window.innerWidth;
       normY = gaze.y / window.innerHeight;
 
-      if (normX < 0.5 && normY < 0.5) quadrant = "TopLeft";
-      else if (normX >= 0.5 && normY < 0.5) quadrant = "TopRight";
-      else if (normX >= 0.5 && normY >= 0.5) quadrant = "BottomRight";
-      else if (normX < 0.5 && normY >= 0.5) quadrant = "BottomLeft";
+      if (normX < 0.5 && normY < 0.5) { quadrant = "TopLeft"; gaze_location = 1; }
+      else if (normX >= 0.5 && normY < 0.5) { quadrant = "TopRight"; gaze_location = 2; }
+      else if (normX >= 0.5 && normY >= 0.5) { quadrant = "BottomRight"; gaze_location = 3; }
+      else if (normX < 0.5 && normY >= 0.5) { quadrant = "BottomLeft"; gaze_location = 4; }
+    }
+
+    if (ffi === 1 && gaze_location !== null && gaze_location === ffl) {
+      eof = 1;
+    } else {
+      eof = 0;
     }
 
     S.raw.push({
@@ -1134,12 +1184,15 @@ function track(t0, sex, trial, ffi){
       block: sex,
       trial: trial,
       ffi: ffi,
+      ffl: ffl,
       timestamp: Number((now - t0).toFixed(2)),
       gazeX: gaze?.x ? Number(gaze.x.toFixed(2)) : null,
       gazeY: gaze?.y ? Number(gaze.y.toFixed(2)) : null,
       normX: normX !== null ? Number(normX.toFixed(4)) : null,
       normY: normY !== null ? Number(normY.toFixed(4)) : null,
       quadrant: quadrant,
+      gaze_location: gaze_location,
+      eof: eof,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight,
       phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
@@ -1192,37 +1245,127 @@ function ratings(){
 // CSV Conversion & Download Helpers
 // ==========================================
 function buildSummaryCSV() {
-  const rows = [];
-  rows.push(['participant', 'age', 'gender', 'record_type', 'item_id', 'phase', 'rt', 'key', 'correct', 'timeout', 'rating'].join(','));
+  const mainTrials = S.trials.filter(t => t.phase === 'main');
 
-  S.trials.forEach((t, idx) => {
+  const mean = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  const pct = (num, den) => den ? ((num / den) * 100) : null;
+  const fmt = val => (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(2) : '';
+
+  // 1. Gaze relative looking time at familiar face (EOF %)
+  const calcGazePct = (blockFilter = null, phaseName = 'Phase1') => {
+    const samples = S.raw.filter(r => r.ffi === 1 && r.phase === phaseName && (blockFilter === null || r.block === blockFilter));
+    if (!samples.length) return null;
+    const eofCount = samples.filter(r => r.eof === 1).length;
+    return (eofCount / samples.length) * 100;
+  };
+
+  const gazePctP1Overall = calcGazePct(null, 'Phase1');
+  const gazePctP2Overall = calcGazePct(null, 'Phase2');
+  const gazePctP1Female = calcGazePct('F', 'Phase1');
+  const gazePctP2Female = calcGazePct('F', 'Phase2');
+  const gazePctP1Male = calcGazePct('M', 'Phase1');
+  const gazePctP2Male = calcGazePct('M', 'Phase2');
+
+  // 2. Single Display Performance Metrics
+  const rtOverall = mean(mainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errOverall = pct(mainTrials.filter(t => !t.correct || t.timeout).length, mainTrials.length);
+
+  const famStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 1);
+  const rtFamStim = mean(famStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errFamStim = pct(famStimTrials.filter(t => !t.correct || t.timeout).length, famStimTrials.length);
+
+  const unfamStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 0);
+  const rtUnfamStim = mean(unfamStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errUnfamStim = pct(unfamStimTrials.filter(t => !t.correct || t.timeout).length, unfamStimTrials.length);
+
+  const yesTrials = mainTrials.filter(t => t.correctKey === 'i');
+  const rtYes = mean(yesTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errYes = pct(yesTrials.filter(t => !t.correct || t.timeout).length, yesTrials.length);
+
+  const noTrials = mainTrials.filter(t => t.correctKey === 'e');
+  const rtNo = mean(noTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errNo = pct(noTrials.filter(t => !t.correct || t.timeout).length, noTrials.length);
+
+  // 3. Face Ratings
+  const familiarSet = new Set([...S.female, ...S.male].map(x => String(x).split('/').pop()));
+  const famRatings = S.ratings.filter(r => familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
+  const unfamRatings = S.ratings.filter(r => !familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
+
+  const ratingFamMean = mean(famRatings);
+  const ratingUnfamMean = mean(unfamRatings);
+
+  // Build CSV
+  const rows = [];
+
+  rows.push('--- AGGREGATED SUMMARY METRICS ---');
+  const summaryHeaders = [
+    'participant', 'age', 'gender', 'practice_runs_count',
+    'gaze_pct_fam_phase1_overall', 'gaze_pct_fam_phase2_overall',
+    'gaze_pct_fam_phase1_female', 'gaze_pct_fam_phase2_female',
+    'gaze_pct_fam_phase1_male', 'gaze_pct_fam_phase2_male',
+    'rt_overall_mean_ms', 'error_rate_overall_pct',
+    'rt_fam_stimulus_mean_ms', 'error_rate_fam_stimulus_pct',
+    'rt_unfam_stimulus_mean_ms', 'error_rate_unfam_stimulus_pct',
+    'rt_yes_target_mean_ms', 'error_rate_yes_target_pct',
+    'rt_no_target_mean_ms', 'error_rate_no_target_pct',
+    'rating_familiar_mean', 'rating_unfamiliar_mean'
+  ];
+  rows.push(summaryHeaders.join(','));
+
+  const summaryValues = [
+    `"${S.id}"`, `"${S.age}"`, `"${S.gender}"`, `"${S.practiceRunCount || 1}"`,
+    `"${fmt(gazePctP1Overall)}"`, `"${fmt(gazePctP2Overall)}"`,
+    `"${fmt(gazePctP1Female)}"`, `"${fmt(gazePctP2Female)}"`,
+    `"${fmt(gazePctP1Male)}"`, `"${fmt(gazePctP2Male)}"`,
+    `"${fmt(rtOverall)}"`, `"${fmt(errOverall)}"`,
+    `"${fmt(rtFamStim)}"`, `"${fmt(errFamStim)}"`,
+    `"${fmt(rtUnfamStim)}"`, `"${fmt(errUnfamStim)}"`,
+    `"${fmt(rtYes)}"`, `"${fmt(errYes)}"`,
+    `"${fmt(rtNo)}"`, `"${fmt(errNo)}"`,
+    `"${fmt(ratingFamMean)}"`, `"${fmt(ratingUnfamMean)}"`
+  ];
+  rows.push(summaryValues.join(','));
+
+  rows.push('');
+
+  rows.push('--- MAIN TASK TRIALS ---');
+  const trialHeaders = [
+    'participant', 'block', 'trial', 'ffi', 'ffl', 'single_stimulus', 
+    'is_familiar_stimulus', 'expected_answer', 'correct_key', 'response_key', 
+    'correct', 'timeout', 'rt_ms'
+  ];
+  rows.push(trialHeaders.join(','));
+
+  mainTrials.forEach(t => {
     rows.push([
       `"${S.id}"`,
-      `"${S.age}"`,
-      `"${S.gender}"`,
-      `"trial"`,
-      `"${idx + 1}"`,
-      `"${t.phase || ''}"`,
-      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`,
+      `"${t.block}"`,
+      `"${t.trial}"`,
+      `"${t.ffi}"`,
+      `"${t.ffl}"`,
+      `"${t.singleStimulus}"`,
+      `"${t.isFamiliarStimulus}"`,
+      `"${t.expectedAnswer}"`,
+      `"${t.correctKey}"`,
       `"${t.key || ''}"`,
       `"${t.correct ? 1 : 0}"`,
       `"${t.timeout ? 1 : 0}"`,
-      `""`
+      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`
     ].join(','));
   });
 
+  rows.push('');
+
+  rows.push('--- FACE RATINGS ---');
+  const ratingHeaders = ['participant', 'stimulus', 'is_familiar', 'rating'];
+  rows.push(ratingHeaders.join(','));
+
   S.ratings.forEach(r => {
+    const isFam = familiarSet.has(String(r.stimulus).split('/').pop()) ? 1 : 0;
     rows.push([
       `"${S.id}"`,
-      `"${S.age}"`,
-      `"${S.gender}"`,
-      `"rating"`,
-      `"${r.stimulus || ''}"`,
-      `""`,
-      `""`,
-      `""`,
-      `""`,
-      `""`,
+      `"${r.stimulus}"`,
+      `"${isFam}"`,
       `"${r.rating}"`
     ].join(','));
   });
@@ -1232,7 +1375,11 @@ function buildSummaryCSV() {
 
 function buildRawGazeCSV() {
   if (!S.raw || S.raw.length === 0) return '';
-  const headers = ['participant', 'block', 'trial', 'ffi', 'timestamp', 'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'screenWidth', 'screenHeight', 'phase'];
+  const headers = [
+    'participant', 'block', 'trial', 'ffi', 'ffl', 'timestamp', 
+    'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'gaze_location', 
+    'eof', 'screenWidth', 'screenHeight', 'phase'
+  ];
   const rows = [headers.join(',')];
 
   S.raw.forEach(r => {
@@ -1263,34 +1410,30 @@ function downloadCSV(csvContent, fileName) {
 // Firebase Storage Save Flow
 // ==========================================
 function finishSavingScreen() {
-  // הצגת מסך טעינה למשתתף
   base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
 
-  // 1. יצירת מחרוזות ה-CSV
   const csvSummary = buildSummaryCSV();
   const csvRaw = buildRawGazeCSV();
 
-  // 2. שמירת הנתונים במסמך יחיד תחת הקולקציה 'participants'
   db.collection('participants').doc(`participant_${S.id}`).set({
     participantId: S.id,
     age: S.age || null,
     gender: S.gender || null,
-    summaryCSV: csvSummary,   // הטקסט המלא של ה-CSV הסיכומי
-    rawGazeCSV: csvRaw,       // הטקסט המלא של ה-CSV הגולמי
+    summaryCSV: csvSummary,
+    rawGazeCSV: csvRaw,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   })
   .then(() => {
     console.log("הנתונים נשמרו בהצלחה ב-Firestore!");
-    finalScreen(false); // מעבר למסך סיום בהצלחה
+    finalScreen(false);
   })
   .catch((error) => {
     console.error("שגיאה בשמירת הנתונים ב-Firestore:", error);
     
-    // במקרה של שגיאה ברשת - הורידי את הקבצים ישירות לדפדפן של המשתתף כדי שלא יאבדו
     downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
     downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
     
-    finalScreen(true); // מסך סיום עם הודעה על שגיאה
+    finalScreen(true);
   });
 }
 
