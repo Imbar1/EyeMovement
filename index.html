@@ -159,7 +159,7 @@ h2{font-size:30px}
 }
 @keyframes miniShrink {
   0% { transform: scale(1.8); opacity: 1; }
-  100% { transform: scale(0.2); opacity: 0.1; }
+  100% { transform: scale(0); opacity: 0.1; }
 }
 
 .status{min-height:30px;color:#ffe66d}
@@ -214,6 +214,8 @@ const root=document.getElementById('app');
 let practiceErrors = 0;
 let miniCalibTimer = null;
 let forceShowPopupUntil = 0;
+let sessions = [];
+let currentSessionIndex = 0;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -249,9 +251,32 @@ function enterFullscreen() {
   }
 }
 
+// ==========================================
+// Safe Storage Handlers
+// ==========================================
 function autoSavePartial() {
   if(!S.id) return;
-  localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
+  try {
+    // שמירת גרסה קלה ומצומצמת בלבד כדי למנוע חריגה מה-5MB ב-localStorage
+    const minState = {
+      id: S.id,
+      age: S.age,
+      gender: S.gender,
+      practiceRunCount: S.practiceRunCount,
+      completedTrialsCount: S.trials.length,
+      lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(minState));
+  } catch (e) {
+    console.warn('localStorage storage limit reached or unavailable:', e);
+  }
+}
+
+function clearPartialSave() {
+  if(!S.id) return;
+  try {
+    localStorage.removeItem('participant_' + S.id + '_partial');
+  } catch(e) {}
 }
 
 // ==========================================
@@ -687,7 +712,7 @@ function screenPracticeInstructions(){
   k(e => {
     if(e.code === 'Space' || e.key === ' ') {
       document.onkeydown = null;
-      countdown('practice');
+      countdown('practice', startPractice);
     }
   });
 }
@@ -754,710 +779,326 @@ function startMiniCalibAnimation() {
   playStep();
 }
 
-function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);const t=setInterval(()=>{n--;if(n<1){clearInterval(t);type==='practice'?practice():mainStart(type==='block2'?2:1)}else ct.textContent=n},1000)}
-
-let showFeedback=false;
-const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
-
 // ==========================================
-// Calibration & Visual Transitions (400ms)
+// Countdown & Calibration
 // ==========================================
-function runTransition(fromPt, toPt, duration, onComplete) {
-  const startTime = performance.now();
-  
-  base(`
-    <div class="calib-stage">
-      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
-        <line x1="${fromPt.x}%" y1="${fromPt.y}%" x2="${toPt.x}%" y2="${toPt.y}%" 
-              stroke="#ffffff" stroke-dasharray="6 6" stroke-width="3" opacity="0.7" />
-      </svg>
-      <div id="transDot" style="position:absolute;width:20px;height:20px;background:#ffffff;border:2px solid #002060;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ffffff;left:${fromPt.x}%;top:${fromPt.y}%;"></div>
-    </div>
-  `);
-
-  const dot = document.getElementById('transDot');
-
-  function step(now) {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-
-    const curX = fromPt.x + (toPt.x - fromPt.x) * progress;
-    const curY = fromPt.y + (toPt.y - fromPt.y) * progress;
-
-    if (dot) {
-      dot.style.left = curX + '%';
-      dot.style.top = curY + '%';
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(step);
+function countdown(type, callback) {
+  let count = 3;
+  base(`<div class="count">${count}</div>`);
+  const interval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      base(`<div class="count">${count}</div>`);
     } else {
-      onComplete();
+      clearInterval(interval);
+      if (typeof callback === 'function') callback();
     }
-  }
-
-  requestAnimationFrame(step);
+  }, 1000);
 }
 
-function run6PointCalibration(onComplete, isSimulation = false) {
-  document.getElementById('cameraPopup')?.classList.remove('show');
-
-  const points = [
-    { x: 50, y: 50 },
-    { x: 10, y: 10 },
-    { x: 90, y: 10 },
-    { x: 90, y: 90 },
-    { x: 10, y: 90 },
-    { x: 50, y: 50 }
-  ];
-
-  if (!isSimulation) {
+function runCalibration(onComplete) {
+  initFaceMeshSystem().then(() => {
     calibDataX = [];
     calibDataY = [];
-    smoothGazeX = null;
-    smoothGazeY = null;
-  }
 
-  let index = 0;
+    const calibPoints = [
+      { x: 0.50, y: 0.50 },
+      { x: 0.15, y: 0.15 },
+      { x: 0.85, y: 0.15 },
+      { x: 0.85, y: 0.85 },
+      { x: 0.15, y: 0.85 },
+      { x: 0.50, y: 0.50 }
+    ];
 
-  function runNextPoint() {
-    if (index >= points.length) {
-      if (!isSimulation && calibDataX.length >= 8) {
-        const X = calibDataX.map(d => d.feat);
-        const Yx = calibDataX.map(d => d.target);
-        const Yy = calibDataY.map(d => d.target);
-        weightsX = solveLinearRegression(X, Yx);
-        weightsY = solveLinearRegression(X, Yy);
+    let currentPointIdx = 0;
+
+    function showPoint() {
+      if (currentPointIdx >= calibPoints.length) {
+        if (calibDataX.length > 5) {
+          const X = calibDataX.map(d => d.features);
+          const Yx = calibDataX.map(d => d.targetX);
+          const Yy = calibDataY.map(d => d.targetY);
+
+          weightsX = solveLinearRegression(X, Yx);
+          weightsY = solveLinearRegression(X, Yy);
+        }
+        if (onComplete) onComplete();
+        return;
       }
-      onComplete();
-      return;
-    }
 
-    const startPointLogic = () => {
-      const pt = points[index];
-      base(`
+      const pt = calibPoints[currentPointIdx];
+      const targetX = pt.x * window.innerWidth;
+      const targetY = pt.y * window.innerHeight;
+
+      root.innerHTML = `
         <div class="calib-stage">
-          <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
+          <div class="calib-target" style="left: ${pt.x * 100}%; top: ${pt.y * 100}%;">
             <div class="calib-center-dot"></div>
             <div class="calib-ring"></div>
           </div>
         </div>
-      `);
+      `;
 
-      const targetX = (pt.x / 100) * window.innerWidth;
-      const targetY = (pt.y / 100) * window.innerHeight;
-      const startTimePoint = performance.now();
-      const duration = 1200;
-      const ignoreInitialMs = 250;
-
-      function sampleLoop() {
-        const elapsed = performance.now() - startTimePoint;
-
-        if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
-          if (currentFeatures) {
-            calibDataX.push({ feat: [...currentFeatures], target: targetX });
-            calibDataY.push({ feat: [...currentFeatures], target: targetY });
-          }
+      const sampleInterval = setInterval(() => {
+        if (currentFeatures && isAligned) {
+          calibDataX.push({ features: [...currentFeatures], targetX: targetX });
+          calibDataY.push({ features: [...currentFeatures], targetY: targetY });
         }
+      }, 50);
 
-        if (elapsed < duration) {
-          requestAnimationFrame(sampleLoop);
-        } else {
-          index++;
-          runNextPoint();
-        }
-      }
-
-      requestAnimationFrame(sampleLoop);
-    };
-
-    if (index > 0) {
-      runTransition(points[index - 1], points[index], 400, startPointLogic);
-    } else {
-      startPointLogic();
+      setTimeout(() => {
+        clearInterval(sampleInterval);
+        currentPointIdx++;
+        showPoint();
+      }, 1200);
     }
-  }
 
-  runNextPoint();
+    showPoint();
+  });
 }
 
-function trial(row, done, isPractice = false){
-  const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-  const loadPromise=preloadTrial(faces);
+// ==========================================
+// Practice Logic
+// ==========================================
+function startPractice() {
+  practiceErrors = 0;
+  const trials = [
+    { grid: ['P1.webp', 'P2.webp', 'P3.webp', 'P4.webp'], test: 'P1.webp', expected: 'i' },
+    { grid: ['P5.webp', 'P6.webp', 'P7.webp', 'P8.webp'], test: 'P9.webp', expected: 'e' },
+    { grid: ['P2.webp', 'P4.webp', 'P6.webp', 'P8.webp'], test: 'P4.webp', expected: 'i' },
+    { grid: ['P1.webp', 'P3.webp', 'P5.webp', 'P7.webp'], test: 'P10.webp', expected: 'e' }
+  ];
+  let idx = 0;
 
-  run6PointCalibration(() => {
-    loadPromise.then(()=>{
-      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
-      requestAnimationFrame(()=>{
-        const grid=document.querySelector('.trial-grid');
-        if(!grid)return;
-        grid.style.visibility='visible';
-
-        setTimeout(()=>{
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response(row,done, true),3000);
-        },5000);
-      });
-    }).catch(err=>{console.error('Trial preload failed',err);if(typeof done==='function')done();});
-  }, isPractice);
-}
-
-function response(row, done, isPractice = false, trialMeta = null){
-  const singleName=String(row[4]).endsWith('.webp')?String(row[4]):String(row[4])+'.webp';
-  base(`${picture(singleName,'center')}<div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div><div class="keys"><span class="yes">I = כן</span><span class="no">E = לא</span></div>`);
-  const t=performance.now();
-  let answered=false;
-  let timeoutId=null;
-  document.onkeydown=null;
-  document.onkeydown=e=>{
-    const key=String(e.key||'').toLowerCase();
-    const q=e.code==='KeyI'||key==='i'||key==='ך'?'i':e.code==='KeyE'||key==='e'||key==='ק'?'e':'';
-    if(!q||answered)return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    answered=true;
-    clearTimeout(timeoutId);
-    document.onkeydown=null;
-    
-    const isCorrect = q === row[row.length-1];
-    if (showFeedback && !isCorrect) {
-      practiceErrors++;
-    }
-
-    if (!showFeedback && trialMeta) {
-      S.trials.push({
-        phase: 'main',
-        block: trialMeta.block,
-        trial: trialMeta.trial,
-        ffi: trialMeta.ffi,
-        ffl: trialMeta.ffl,
-        singleStimulus: trialMeta.singleStimulus,
-        isFamiliarStimulus: trialMeta.isFamiliarStimulus,
-        expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
-        correctKey: trialMeta.correctKey,
-        key: q,
-        correct: isCorrect,
-        timeout: false,
-        rt: performance.now() - t
-      });
-      autoSavePartial();
-    }
-
-    const finishAnswer=()=>{if(typeof done==='function')done()};
-    if(showFeedback){base(`<h2 style="color:${isCorrect?'#00a83b':'#b32626'}">${isCorrect?'תשובה נכונה':'תשובה שגויה'}</h2>`);setTimeout(finishAnswer,700)}
-    else finishAnswer()
-  };
-  timeoutId=setTimeout(()=>{
-    if(answered)return;
-    answered=true;
-    document.onkeydown=null;
-    
-    if (showFeedback) {
-      practiceErrors++;
-    }
-
-    if (!showFeedback && trialMeta) {
-      S.trials.push({
-        phase: 'main',
-        block: trialMeta.block,
-        trial: trialMeta.trial,
-        ffi: trialMeta.ffi,
-        ffl: trialMeta.ffl,
-        singleStimulus: trialMeta.singleStimulus,
-        isFamiliarStimulus: trialMeta.isFamiliarStimulus,
-        expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
-        correctKey: trialMeta.correctKey,
-        key: null,
-        correct: false,
-        timeout: true,
-        rt: null
-      });
-      autoSavePartial();
-    }
-
-    if(showFeedback){base('<h2 style="color:#9b3f3f">לאט מידי</h2>');setTimeout(()=>{if(typeof done==='function')done()},700)}
-    else if(typeof done==='function')done()
-  },2000);
-  window.focus();
-}
-
-function practice(){
-  showFeedback=true;
-  practiceErrors=0;
-  S.practiceRunCount = (S.practiceRunCount || 0) + 1;
-  document.body.style.cursor = 'none';
-  let i=0,finished=false;
-  const go=()=>{
-    if(finished)return;
-    if(i<prac.length){
-      trial(prac[i++],go, true);
-    }else{
-      finished=true;
-      showFeedback=false;
-      document.onkeydown=null;
-      document.body.style.cursor = 'default';
-
-      if(practiceErrors >= 2){
+  function nextPracticeTrial() {
+    if (idx >= trials.length) {
+      if (practiceErrors <= 1) {
+        startMainExperiment();
+      } else {
+        S.practiceRunCount++;
         base(`
           <div class="panel">
-            <h2 style="color:#b32626">שלב האימון לא עבר בהצלחה</h2>
-            <p style="font-size: 22px; margin: 20px 0;">ביצעת ${practiceErrors} שגיאות בשלב האימון. יש לבצע את האימון שוב לפני המעבר לניסוי.</p>
+            <h2>אימון לא עבר בהצלחה</h2>
+            <p>היו ${practiceErrors} טעויות. יש לבצע את שלב האימון שוב.</p>
             <button class="btn" id="retryPrac">התחל אימון מחדש</button>
           </div>
         `);
-        document.getElementById('retryPrac').onclick = () => countdown('practice');
-      } else {
-        setTimeout(screenMovementInstructions,400);
-      }
-    }
-  };
-  go()
-}
-
-function screenMovementInstructions(){
-  base(`${picture('EM_instructions.jpg','slide')}<button class="btn" id="movementContinue">המשך</button>`);
-  document.getElementById('movementContinue').addEventListener('click',()=>screen12(1));
-}
-
-function screen12(block=1){
-  base('<div class="panel"><h2>מכינים את המצלמה למעקב עיניים</h2><p>נא לאשר גישה למצלמה ולהישאר מול המסך.</p><p id="wgStatus">מפעילים את מודל הפנים...</p></div>');
-  initFaceMeshSystem().then(()=>{
-    document.getElementById('wgStatus')?.remove();
-    screenFaceSetup(block);
-  }).catch(e=>{
-    base(`<div class="panel"><h2>לא ניתן להפעיל את המצלמה</h2><p>יש לאפשר גישה למצלמה בדפדפן.</p><p class="status">${e.message||''}</p></div>`);
-  });
-}
-
-function screenFaceSetup(block){
-  forceShowPopupUntil = performance.now() + 3000;
-  const popup = document.getElementById('cameraPopup');
-  if (popup) popup.classList.add('show');
-
-  base(`
-    <div class="panel">
-      <h2>אימות מיקום הפנים - חלק ${block}</h2>
-      <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
-      <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך".</p>
-      <button class="btn" id="goCalBtn">המשך</button>
-    </div>
-  `);
-  document.getElementById('goCalBtn').onclick = () => {
-    if (!document.fullscreenElement) {
-      enterFullscreen();
-    }
-    forceShowPopupUntil = 0;
-    document.getElementById('cameraPopup')?.classList.remove('show');
-    screen13(block);
-  }
-}
-
-function screen13(block){
-  base(`
-    <div class="panel">
-      <h2>הוראות למשימת מעקב העיניים - חלק ${block}</h2>
-      <p style="font-size:22px; line-height:1.6; text-align:right;">
-        • לפני כל הצגה של 4 פרצופים, תופיע סדרה קצרה של <strong>6 נקודות כיול</strong> (מרכז, פינות, ובחזרה למרכז).<br>
-        • בין נקודה לנקודה יופיע קו מנחה לעין – יש לעקוב אחר תנועתו.<br>
-        • <strong>הנקודה השישית והאחרונה ממוקמת במרכז המסך.</strong> מיד בסיומה יופיעו 4 הפרצופים.
-      </p>
-      <p style="color: #002060; font-size:20px; margin-top:30px;">ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש <strong>"רווח"</strong> כדי להתחיל.</p>
-    </div>
-  `);
-  k(e=>{if(e.code==='Space')countdown(block===1?'main':'block2')});
-}
-
-function mainStart(block){
-  showFeedback=false;
-  document.body.style.cursor = 'none';
-  
-  const sex=block===1?(Math.random()<.5?'F':'M'):(S.lastSex==='F'?'M':'F');
-  S.lastSex=sex;
-  const familiar=(sex==='F'?S.female:S.male).map(x=>String(x).split('/').pop());
-  const f1=familiar[0]||`${sex}1.webp`,f2=familiar[1]||`${sex}2.webp`;
-  
-  const rows=sex==='F'?[
-    {ffi:1, ffl:1, p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'], s:'UNf6.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'], s:f1, c:'i'},
-    {ffi:1, ffl:3, p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'], s:'UNf5.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNf7.webp','UNf8.webp','UNf3.webp',f1], s:'UNf3.webp', c:'i'},
-    {ffi:1, ffl:1, p:[f2,'UNf10.webp','UNf9.webp','UNf7.webp'], s:'UNf4.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNf8.webp',f2,'UNf4.webp','UNf12.webp'], s:f2, c:'i'},
-    {ffi:1, ffl:3, p:['UNf3.webp','UNf6.webp',f2,'UNf13.webp'], s:'UNf2.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNf11.webp','UNf2.webp','UNf1.webp',f2], s:'UNf1.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'], s:'UNf3.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'], s:'UNf6.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'], s:'UNf1.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'], s:'UNf5.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'], s:f1, c:'e'},
-    {ffi:0, ffl:0, p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'], s:'UNf4.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'], s:f2, c:'e'},
-    {ffi:0, ffl:0, p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'], s:'UNf2.webp', c:'i'}
-  ].sort(()=>Math.random()-.5):[
-    {ffi:1, ffl:1, p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'], s:'UNm6.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'], s:f1, c:'i'},
-    {ffi:1, ffl:3, p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'], s:'UNm5.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNm7.webp','UNm8.webp','UNm3.webp',f1], s:'UNm3.webp', c:'i'},
-    {ffi:1, ffl:1, p:[f2,'UNm10.webp','UNm9.webp','UNm7.webp'], s:'UNm4.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNm8.webp',f2,'UNm4.webp','UNm12.webp'], s:f2, c:'i'},
-    {ffi:1, ffl:3, p:['UNm3.webp','UNm6.webp',f2,'UNm13.webp'], s:'UNm2.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNm11.webp','UNm2.webp','UNm1.webp',f2], s:'UNm1.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'], s:'UNm3.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'], s:'UNm6.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'], s:'UNm1.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'], s:'UNm5.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'], s:f1, c:'e'},
-    {ffi:0, ffl:0, p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'], s:'UNm4.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'], s:f2, c:'e'},
-    {ffi:0, ffl:0, p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'], s:'UNm2.webp', c:'i'}
-  ].sort(()=>Math.random()-.5);
-
-  let trialIndex=0;
-  const go=()=>{
-    if(trialIndex>=rows.length){
-      document.body.style.cursor = 'default';
-      if(block === 1) {
-        screenFaceSetup(2); 
-      } else {
-        screen16();
+        document.getElementById('retryPrac').onclick = () => countdown('practice', startPractice);
       }
       return;
     }
-    const r=rows[trialIndex++];
-    const faces=r.p.map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-    const tno=trialIndex;
 
-    const loadPromise=preloadTrial(faces);
-
-    run6PointCalibration(() => {
-      loadPromise.then(() => {
-        base(`<div class="trial-grid">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-        
-        const t0=performance.now();
-        track(t0, sex, tno, r.ffi, r.ffl);
-
-        setTimeout(()=>{
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response([...faces,r.s,r.c], go, false, {
-            block: sex,
-            trial: tno,
-            ffi: r.ffi,
-            ffl: r.ffl,
-            singleStimulus: r.s,
-            isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
-            correctKey: r.c
-          }), 3000);
-        },5000);
-      }).catch(err=>{console.error('Main trial preload failed',err);go();});
-    }, false);
-  };
-  go();
-}
-
-function track(t0, sex, trial, ffi, ffl){
-  const stopAt=t0+5000;
-  const f=()=>{
-    const now=performance.now();
-    if(now>=stopAt)return;
-    
-    const gaze = predictGaze();
-    let normX = null, normY = null, quadrant = null, gaze_location = null, eof = 0;
-
-    if (gaze && gaze.x !== null && gaze.y !== null) {
-      normX = gaze.x / window.innerWidth;
-      normY = gaze.y / window.innerHeight;
-
-      if (normX < 0.5 && normY < 0.5) { quadrant = "TopLeft"; gaze_location = 1; }
-      else if (normX >= 0.5 && normY < 0.5) { quadrant = "TopRight"; gaze_location = 2; }
-      else if (normX >= 0.5 && normY >= 0.5) { quadrant = "BottomRight"; gaze_location = 3; }
-      else if (normX < 0.5 && normY >= 0.5) { quadrant = "BottomLeft"; gaze_location = 4; }
-    }
-
-    if (ffi === 1 && gaze_location !== null && gaze_location === ffl) {
-      eof = 1;
-    } else {
-      eof = 0;
-    }
-
-    S.raw.push({
-      participant: S.id,
-      block: sex,
-      trial: trial,
-      ffi: ffi,
-      ffl: ffl,
-      timestamp: Number((now - t0).toFixed(2)),
-      gazeX: gaze?.x ? Number(gaze.x.toFixed(2)) : null,
-      gazeY: gaze?.y ? Number(gaze.y.toFixed(2)) : null,
-      normX: normX !== null ? Number(normX.toFixed(4)) : null,
-      normY: normY !== null ? Number(normY.toFixed(4)) : null,
-      quadrant: quadrant,
-      gaze_location: gaze_location,
-      eof: eof,
-      screenWidth: window.innerWidth,
-      screenHeight: window.innerHeight,
-      phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
+    const t = trials[idx];
+    runTrialLogic(t, true, (result) => {
+      if (!result.correct) practiceErrors++;
+      idx++;
+      nextPracticeTrial();
     });
-
-    requestAnimationFrame(f);
-  };
-  requestAnimationFrame(f);
-}
-
-function screen16(){
-  if(cameraUtils) cameraUtils.stop();
-  document.getElementById('cameraPopup')?.classList.remove('show');
-  const popup = document.getElementById('cameraPopup');
-  if (popup) {
-    popup.classList.remove('show', 'good', 'bad');
-    popup.style.display = 'none';
   }
-  base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
-  b.onclick=()=>instr('b_sig_rate.jpg','ratings');
-}
 
-function ratings(){
-  const all=[...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...S.female,...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...S.male];
-  const go=()=>{
-    if(!ratings.i)ratings.i=0;
-    if(ratings.i>=all.length) return finishSavingScreen();
-
-    base(`
-      <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
-      ${picture(all[ratings.i],'rating-face')}
-      <div class="rating-labels">
-        <span>9 = במידה רבה מאוד</span>
-        <span>1 = במידה מועטה מאוד</span>
-      </div>
-      <div class="scale">
-        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
-      </div>
-    `);
-  };
-  ratings.rate=n=>{
-    S.ratings.push({stimulus:all[ratings.i],rating:n});
-    ratings.i++;
-    go();
-  };
-  go();
-}
-
-// ==========================================
-// CSV Conversion & Download Helpers
-// ==========================================
-function buildSummaryCSV() {
-  const mainTrials = S.trials.filter(t => t.phase === 'main');
-
-  const mean = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
-  const pct = (num, den) => den ? ((num / den) * 100) : null;
-  const fmt = val => (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(2) : '';
-
-  // 1. Gaze relative looking time at familiar face (EOF %)
-  const calcGazePct = (blockFilter = null, phaseName = 'Phase1') => {
-    const samples = S.raw.filter(r => r.ffi === 1 && r.phase === phaseName && (blockFilter === null || r.block === blockFilter));
-    if (!samples.length) return null;
-    const eofCount = samples.filter(r => r.eof === 1).length;
-    return (eofCount / samples.length) * 100;
-  };
-
-  const gazePctP1Overall = calcGazePct(null, 'Phase1');
-  const gazePctP2Overall = calcGazePct(null, 'Phase2');
-  const gazePctP1Female = calcGazePct('F', 'Phase1');
-  const gazePctP2Female = calcGazePct('F', 'Phase2');
-  const gazePctP1Male = calcGazePct('M', 'Phase1');
-  const gazePctP2Male = calcGazePct('M', 'Phase2');
-
-  // 2. Single Display Performance Metrics
-  const rtOverall = mean(mainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errOverall = pct(mainTrials.filter(t => !t.correct || t.timeout).length, mainTrials.length);
-
-  const famStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 1);
-  const rtFamStim = mean(famStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errFamStim = pct(famStimTrials.filter(t => !t.correct || t.timeout).length, famStimTrials.length);
-
-  const unfamStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 0);
-  const rtUnfamStim = mean(unfamStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errUnfamStim = pct(unfamStimTrials.filter(t => !t.correct || t.timeout).length, unfamStimTrials.length);
-
-  const yesTrials = mainTrials.filter(t => t.correctKey === 'i');
-  const rtYes = mean(yesTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errYes = pct(yesTrials.filter(t => !t.correct || t.timeout).length, yesTrials.length);
-
-  const noTrials = mainTrials.filter(t => t.correctKey === 'e');
-  const rtNo = mean(noTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errNo = pct(noTrials.filter(t => !t.correct || t.timeout).length, noTrials.length);
-
-  // 3. Face Ratings
-  const familiarSet = new Set([...S.female, ...S.male].map(x => String(x).split('/').pop()));
-  const famRatings = S.ratings.filter(r => familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
-  const unfamRatings = S.ratings.filter(r => !familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
-
-  const ratingFamMean = mean(famRatings);
-  const ratingUnfamMean = mean(unfamRatings);
-
-  // Build CSV
-  const rows = [];
-
-  rows.push('--- AGGREGATED SUMMARY METRICS ---');
-  const summaryHeaders = [
-    'participant', 'age', 'gender', 'practice_runs_count',
-    'gaze_pct_fam_phase1_overall', 'gaze_pct_fam_phase2_overall',
-    'gaze_pct_fam_phase1_female', 'gaze_pct_fam_phase2_female',
-    'gaze_pct_fam_phase1_male', 'gaze_pct_fam_phase2_male',
-    'rt_overall_mean_ms', 'error_rate_overall_pct',
-    'rt_fam_stimulus_mean_ms', 'error_rate_fam_stimulus_pct',
-    'rt_unfam_stimulus_mean_ms', 'error_rate_unfam_stimulus_pct',
-    'rt_yes_target_mean_ms', 'error_rate_yes_target_pct',
-    'rt_no_target_mean_ms', 'error_rate_no_target_pct',
-    'rating_familiar_mean', 'rating_unfamiliar_mean'
-  ];
-  rows.push(summaryHeaders.join(','));
-
-  const summaryValues = [
-    `"${S.id}"`, `"${S.age}"`, `"${S.gender}"`, `"${S.practiceRunCount || 1}"`,
-    `"${fmt(gazePctP1Overall)}"`, `"${fmt(gazePctP2Overall)}"`,
-    `"${fmt(gazePctP1Female)}"`, `"${fmt(gazePctP2Female)}"`,
-    `"${fmt(gazePctP1Male)}"`, `"${fmt(gazePctP2Male)}"`,
-    `"${fmt(rtOverall)}"`, `"${fmt(errOverall)}"`,
-    `"${fmt(rtFamStim)}"`, `"${fmt(errFamStim)}"`,
-    `"${fmt(rtUnfamStim)}"`, `"${fmt(errUnfamStim)}"`,
-    `"${fmt(rtYes)}"`, `"${fmt(errYes)}"`,
-    `"${fmt(rtNo)}"`, `"${fmt(errNo)}"`,
-    `"${fmt(ratingFamMean)}"`, `"${fmt(ratingUnfamMean)}"`
-  ];
-  rows.push(summaryValues.join(','));
-
-  rows.push('');
-
-  rows.push('--- MAIN TASK TRIALS ---');
-  const trialHeaders = [
-    'participant', 'block', 'trial', 'ffi', 'ffl', 'single_stimulus', 
-    'is_familiar_stimulus', 'expected_answer', 'correct_key', 'response_key', 
-    'correct', 'timeout', 'rt_ms'
-  ];
-  rows.push(trialHeaders.join(','));
-
-  mainTrials.forEach(t => {
-    rows.push([
-      `"${S.id}"`,
-      `"${t.block}"`,
-      `"${t.trial}"`,
-      `"${t.ffi}"`,
-      `"${t.ffl}"`,
-      `"${t.singleStimulus}"`,
-      `"${t.isFamiliarStimulus}"`,
-      `"${t.expectedAnswer}"`,
-      `"${t.correctKey}"`,
-      `"${t.key || ''}"`,
-      `"${t.correct ? 1 : 0}"`,
-      `"${t.timeout ? 1 : 0}"`,
-      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`
-    ].join(','));
-  });
-
-  rows.push('');
-
-  rows.push('--- FACE RATINGS ---');
-  const ratingHeaders = ['participant', 'stimulus', 'is_familiar', 'rating'];
-  rows.push(ratingHeaders.join(','));
-
-  S.ratings.forEach(r => {
-    const isFam = familiarSet.has(String(r.stimulus).split('/').pop()) ? 1 : 0;
-    rows.push([
-      `"${S.id}"`,
-      `"${r.stimulus}"`,
-      `"${isFam}"`,
-      `"${r.rating}"`
-    ].join(','));
-  });
-
-  return rows.join('\n');
-}
-
-function buildRawGazeCSV() {
-  if (!S.raw || S.raw.length === 0) return '';
-  const headers = [
-    'participant', 'block', 'trial', 'ffi', 'ffl', 'timestamp', 
-    'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'gaze_location', 
-    'eof', 'screenWidth', 'screenHeight', 'phase'
-  ];
-  const rows = [headers.join(',')];
-
-  S.raw.forEach(r => {
-    const row = headers.map(h => {
-      const val = r[h] === null || r[h] === undefined ? '' : r[h];
-      return `"${String(val).replace(/"/g, '""')}"`;
-    });
-    rows.push(row.join(','));
-  });
-
-  return rows.join('\n');
-}
-
-function downloadCSV(csvContent, fileName) {
-  if (!csvContent) return;
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', fileName);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// ==========================================
-// Firebase Storage Save Flow
-// ==========================================
-function finishSavingScreen() {
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
-
-  const csvSummary = buildSummaryCSV();
-  const csvRaw = buildRawGazeCSV();
-
-  db.collection('participants').doc(`participant_${S.id}`).set({
-    participantId: S.id,
-    age: S.age || null,
-    gender: S.gender || null,
-    summaryCSV: csvSummary,
-    rawGazeCSV: csvRaw,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  })
-  .then(() => {
-    console.log("הנתונים נשמרו בהצלחה ב-Firestore!");
-    finalScreen(false);
-  })
-  .catch((error) => {
-    console.error("שגיאה בשמירת הנתונים ב-Firestore:", error);
-    
-    downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
-    downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
-    
-    finalScreen(true);
+  runCalibration(() => {
+    nextPracticeTrial();
   });
 }
 
-function finalScreen(hasError = false) {
-  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה בשרת בפורמט CSV.";
-  if (hasError) {
-    message = "הניסוי הסתיים. הייתה שגיאה בחיבור לענן, לכן קובצי ה-CSV הורדו באופן אוטומטי למחשב שלך כגיבוי.";
-  }
+// ==========================================
+// Main Experiment Sessions & Break Screen
+// ==========================================
+function startMainExperiment() {
+  const order = Math.random() < 0.5 ? ['female', 'male'] : ['male', 'female'];
+  sessions = order;
+  currentSessionIndex = 0;
+  runSession(sessions[currentSessionIndex]);
+}
+
+function screenSessionBreak() {
+  if (miniCalibTimer) clearTimeout(miniCalibTimer);
+  document.onkeydown = null;
 
   base(`
-    ${picture('biu_logo.png','logo')}
-    <div class="panel">
-      <h1>תודה רבה על השתתפותך 😊</h1>
-      <p>${message}</p>
-      <h2 style="margin-top: 30px; color: #ffea00;">כעת ניתן לצאת מדף זה.</h2>
+    <div class="panel consent-choice" style="max-width: 850px; text-align: center; padding: 30px;">
+      <h2 style="color: #002060; font-size: 32px; margin-bottom: 20px;">הפסקה - סיימת את חלק 1 מתוך 2</h2>
+      <div style="font-size: 24px; line-height: 1.6; margin-bottom: 25px; text-align: right; direction: rtl;">
+        <p>כל הכבוד! השלמת בהצלחה את החלק הראשון של הניסוי.</p>
+        <p>כעת זהו זמן מצוין לקחת כמה שניות למנוחה, לרענן את העיניים ולמזער תנועות.</p>
+        <p style="color: #ffea00; font-weight: bold; margin-top: 15px;">כשתהיה/י מוכן/ה להמשיך לחלק השני והאחרון, יש ללחוץ על מקש הרווח (Space).</p>
+      </div>
+      <button class="btn" id="breakContinueBtn">המשך לחלק 2 (ספייס)</button>
     </div>
   `);
+
+  const proceed = () => {
+    document.onkeydown = null;
+    countdown('main', () => {
+      runSession(sessions[currentSessionIndex]);
+    });
+  };
+
+  document.getElementById('breakContinueBtn').onclick = proceed;
+
+  k(e => {
+    if (e.code === 'Space' || e.key === ' ') {
+      proceed();
+    }
+  });
 }
 
-function exit(t){
-  document.body.style.cursor = 'default';
-  base(`<div class="panel"><h2>${t}</h2></div>`);
+function runSession(genderType) {
+  const selectedFaces = S[genderType];
+  const prefix = genderType === 'female' ? 'UNf' : 'UNm';
+  const fillers = Array.from({length: 14}, (_, i) => `${prefix}${i+1}.webp`);
+
+  let trialsList = [];
+  for(let i=0; i<8; i++) {
+    const shuffle = [...fillers].sort(() => 0.5 - Math.random());
+    const g = [selectedFaces[0], selectedFaces[1], shuffle[0], shuffle[1]].sort(() => 0.5 - Math.random());
+    const isTarget = Math.random() < 0.5;
+    const testFace = isTarget ? g[0] : shuffle[2];
+    const expected = g.includes(testFace) ? 'i' : 'e';
+    trialsList.push({ grid: g, test: testFace, expected: expected, genderType: genderType });
+  }
+
+  let trialIdx = 0;
+
+  function stepTrial() {
+    if (trialIdx >= trialsList.length) {
+      currentSessionIndex++;
+      if (currentSessionIndex < sessions.length) {
+        screenSessionBreak();
+      } else {
+        saveDataAndFinish();
+      }
+      return;
+    }
+
+    const currentTrial = trialsList[trialIdx];
+    runTrialLogic(currentTrial, false, (res) => {
+      S.trials.push(res);
+      autoSavePartial();
+      trialIdx++;
+      stepTrial();
+    });
+  }
+
+  runCalibration(() => {
+    stepTrial();
+  });
 }
 
+// ==========================================
+// Trial Core Execution Logic
+// ==========================================
+function runTrialLogic(trial, isPractice, callback) {
+  preloadTrial([...trial.grid, trial.test]).then(() => {
+    // 1. Grid display (3000ms)
+    base(`
+      <div class="trial-grid">
+        ${picture(trial.grid[0], 'pos p1')}
+        ${picture(trial.grid[1], 'pos p2')}
+        ${picture(trial.grid[2], 'pos p3')}
+        ${picture(trial.grid[3], 'pos p4')}
+      </div>
+    `);
+
+    setTimeout(() => {
+      // 2. Bottom Fixation Cross
+      base(`<div class="bottom-fix">+</div>`);
+
+      setTimeout(() => {
+        // 3. Test Screen & Response listener
+        const startTime = performance.now();
+        base(`
+          <div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div>
+          ${picture(trial.test, 'center')}
+          <div class="keys">
+            <span class="no">E = לא</span>
+            <span class="yes">I = כן</span>
+          </div>
+        `);
+
+        let answered = false;
+
+        const handleResponse = (key) => {
+          if (answered) return;
+          answered = true;
+          const rt = Math.round(performance.now() - startTime);
+          const isCorrect = key.toLowerCase() === trial.expected;
+
+          const trialResult = {
+            grid: trial.grid,
+            test: trial.test,
+            expected: trial.expected,
+            response: key,
+            correct: isCorrect,
+            rt: rt,
+            isPractice: isPractice
+          };
+
+          if (isPractice) {
+            let msg = isCorrect ? '<span style="color:#35d36b">תשובה נכונה</span>' : '<span style="color:#d33">תשובה שגויה</span>';
+            base(`<h2>${msg}</h2>`);
+            setTimeout(() => callback(trialResult), 1000);
+          } else {
+            callback(trialResult);
+          }
+        };
+
+        k(e => {
+          const kName = e.key.toLowerCase();
+          if (kName === 'i' || kName === 'e') {
+            document.onkeydown = null;
+            handleResponse(kName);
+          }
+        });
+
+        setTimeout(() => {
+          if (!answered) {
+            document.onkeydown = null;
+            if (isPractice) {
+              base(`<h2 style="color:#d33">לאט מדי</h2>`);
+              setTimeout(() => callback({ correct: false, rt: 2500, response: 'none' }), 1000);
+            } else {
+              callback({ grid: trial.grid, test: trial.test, expected: trial.expected, response: 'none', correct: false, rt: 2500, isPractice: false });
+            }
+          }
+        }, 2500);
+
+      }, 500);
+    }, 3000);
+  });
+}
+
+// ==========================================
+// Save Data & Finish
+// ==========================================
+function saveDataAndFinish() {
+  clearPartialSave();
+  base(`<div class="panel"><h2>שומר את נתוני הניסוי...</h2><p>אנא המתן/י, אין לסגור את הדפדפן.</p></div>`);
+
+  const docId = `P_${S.id}_${Date.now()}`;
+  db.collection('experiment_results').doc(docId).set({
+    participantId: S.id,
+    age: S.age,
+    gender: S.gender,
+    selectedFemale: S.female,
+    selectedMale: S.male,
+    trials: S.trials,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    exit('תודה רבה! הניסוי הסתיים בהצלחה ונתוניך נשמרו.');
+  }).catch(err => {
+    console.error('Firebase save error:', err);
+    exit('הניסוי הסתיים. תודה רבה על השתתפותך!');
+  });
+}
+
+function exit(msg) {
+  if (miniCalibTimer) clearTimeout(miniCalibTimer);
+  document.onkeydown = null;
+  base(`<div class="panel"><h2>${msg}</h2></div>`);
+}
+
+// Start preload on initialization
 preload();
 </script>
 </body>
