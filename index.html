@@ -1029,6 +1029,37 @@ function screen12(block=1){
   });
 }
 
+function screenSessionBreak() {
+  if (miniCalibTimer) clearTimeout(miniCalibTimer);
+  document.onkeydown = null;
+
+  base(`
+    <div class="panel consent-choice" style="max-width: 850px; text-align: center; padding: 30px;">
+      <h2 style="color: #002060; font-size: 32px; margin-bottom: 20px;">הפסקה - סיימת את חלק 1 מתוך 2</h2>
+      <div style="font-size: 24px; line-height: 1.6; margin-bottom: 25px; text-align: right; direction: rtl;">
+        <p>כל הכבוד! השלמת בהצלחה את החלק הראשון של הניסוי.</p>
+        <p>כעת זהו זמן מצוין לקחת כמה שניות למנוחה, לרענן את העיניים ולמזער תנועות.</p>
+        <p style="color: #ffea00; font-weight: bold; margin-top: 15px;">כשתהיה/י מוכן/ה להמשיך לחלק השני והאחרון, יש ללחוץ על מקש הרווח (Space).</p>
+      </div>
+      <button class="btn" id="breakContinueBtn">המשך לחלק 2 (ספייס)</button>
+    </div>
+  `);
+
+  const proceed = () => {
+    document.onkeydown = null;
+    screenFaceSetup(2); // מעבר לכללי אימות המצלמה של חלק 2
+  };
+
+  document.getElementById('breakContinueBtn').onclick = proceed;
+
+  k(e => {
+    if (e.code === 'Space' || e.key === ' ') {
+      e.preventDefault();
+      proceed();
+    }
+  });
+}
+
 function screenFaceSetup(block){
   forceShowPopupUntil = performance.now() + 3000;
   const popup = document.getElementById('cameraPopup');
@@ -1117,7 +1148,7 @@ function mainStart(block){
     if(trialIndex>=rows.length){
       document.body.style.cursor = 'default';
       if(block === 1) {
-        screenFaceSetup(2); 
+        screenSessionBreak(); 
       } else {
         screen16();
       }
