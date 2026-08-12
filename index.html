@@ -841,11 +841,15 @@ function run6PointCalibration(onComplete, isSimulation = false) {
               <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
               <p style="font-size: 22px; margin: 20px 0;">נראה שעיניך היו עצומות או שלא הבטת בנקודות הכיול בצורה רציפה.</p>
               <p style="font-size: 20px;">נא להקפיד להביט על כל נקודה ועל הקווים המנחים בעניים פקוחות וללא תנועות ראש.</p>
-              <button class="btn" id="retryCalibBtn">נסה כיול שוב</button>
+              <p style="color: #002060; font-size: 24px; font-weight: bold;">כדי להמשיך שוב לכיול יש ללחוץ על מקש "רווח"</p>
             </div>
           `);
-          document.getElementById('retryCalibBtn').onclick = () => {
-            run6PointCalibration(onComplete, isSimulation);
+          k(e => {
+            if (e.code === 'Space' || e.key === ' ') {
+              e.preventDefault();
+              document.onkeydown = null;
+              run6PointCalibration(onComplete, isSimulation);
+            }
           };
           return;
         }
