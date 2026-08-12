@@ -263,6 +263,7 @@ let cameraUtils = null;
 let currentFeatures = null;
 let calibDataX = [];
 let calibDataY = [];
+let totalCalibSamples = 0;
 let weightsX = null;
 let weightsY = null;
 
@@ -480,16 +481,21 @@ function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיי
 
 function screen2(){
   base(`
-    <div class="panel consent-choice">
-      <h2>האם את/ה מרכיב/ה משקפיי ראייה מקרוב?</h2>
-      <div style="margin-top: 15px;">
-        <button class="btn" id="yes">כן</button>
-        <button class="btn no-btn" id="no">לא</button>
+    <div class="panel consent-choice" style="max-width: 850px; text-align: right; direction: rtl;">
+      <h2 style="text-align: center; color: #002060;">לניסוי זה שלוש דרישות:</h2>
+      <ol style="font-size: 22px; line-height: 1.6; margin: 20px 0; padding-right: 25px;">
+        <li style="margin-bottom: 12px;">את ניסוי זה יש לבצע עם לפטופ בעל מצלמה מובנית בלבד (לא מחשב שולחני עם חיבור מצלמת רשת).</li>
+        <li style="margin-bottom: 12px;">יש איסור לחבר מסך חיצוני ללפטופ בזמן ביצוע הניסוי.</li>
+        <li style="margin-bottom: 12px;">ניתן לבצע ניסוי זה בתנאי שאינך מרכיב/ה משקפיי ראייה מקרוב.</li>
+      </ol>
+      <div style="margin-top: 25px; text-align: center; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn" id="reqYes">אני עומד/ת בכל הדרישות</button>
+        <button class="btn no-btn" id="reqNo">אני לא עומד/ת בדרישות</button>
       </div>
     </div>
   `);
-  document.getElementById('yes').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאת/ה מרכיב/ה משקפיים לא תוכל/י לבצע את הניסוי. סליחה ויום טוב :)'));
-  document.getElementById('no').addEventListener('click',consentScreen);
+  document.getElementById('reqYes').addEventListener('click', consentScreen);
+  document.getElementById('reqNo').addEventListener('click', () => exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאינך עומד/ת בדרישות הניסוי, לא תוכל/י לבצע אותו. סליחה ויום טוב :)'));
 }
 
 function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
@@ -815,6 +821,7 @@ function run6PointCalibration(onComplete, isSimulation = false) {
   if (!isSimulation) {
     calibDataX = [];
     calibDataY = [];
+    totalCalibSamples = 0;
     smoothGazeX = null;
     smoothGazeY = null;
   }
@@ -824,7 +831,11 @@ function run6PointCalibration(onComplete, isSimulation = false) {
   function runNextPoint() {
     if (index >= points.length) {
       if (!isSimulation) {
-        if (calibDataX.length < 60) {
+        const validSamples = calibDataX.length;
+        const invalidSamples = totalCalibSamples - validSamples;
+        const halfSamples = totalCalibSamples / 2;
+
+        if ((totalCalibSamples > 0 && invalidSamples >= halfSamples) || validSamples < 60) {
           base(`
             <div class="panel" style="text-align: center;">
               <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
@@ -870,6 +881,7 @@ function run6PointCalibration(onComplete, isSimulation = false) {
         const elapsed = performance.now() - startTimePoint;
 
         if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
+          totalCalibSamples++;
           if (currentFeatures) {
             calibDataX.push({ feat: [...currentFeatures], target: targetX });
             calibDataY.push({ feat: [...currentFeatures], target: targetY });
