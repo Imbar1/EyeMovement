@@ -62,9 +62,9 @@ h2{font-size:30px}
 .center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
 .question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
-.keys{position:absolute;bottom:5vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;color:#002060;direction:ltr}
-.keys .yes{position:absolute;right:8vw;white-space:nowrap}
-.keys .no{position:absolute;left:8vw;white-space:nowrap}
+.keys{position:absolute;bottom:5vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;direction:ltr}
+.keys .yes{position:absolute;right:8vw;white-space:nowrap;color:#006400}
+.keys .no{position:absolute;left:8vw;white-space:nowrap;color:#8B0000}
 
 .camera-popup{position:fixed;top:14px;left:14px;z-index:9999;background:#111c;padding:6px;border-radius:8px;display:none;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
 .camera-popup.show{display:block}
@@ -214,6 +214,7 @@ const root=document.getElementById('app');
 let practiceErrors = 0;
 let miniCalibTimer = null;
 let forceShowPopupUntil = 0;
+let isFaceSetupScreen = false;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -411,7 +412,7 @@ function initFaceMeshSystem() {
 
       const nose = lm[1];
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
-      const isForceShown = performance.now() < forceShowPopupUntil;
+      const isForceShown = isFaceSetupScreen || (performance.now() < forceShowPopupUntil);
 
       if (centered) {
         isAligned = true;
@@ -532,8 +533,8 @@ function screenTaskInstructions(){
       <ul style="font-size: 19px; margin-right: 20px; margin-bottom: 12px; line-height: 1.5; list-style-type: disc;">
         <li><strong>מסך עם ארבעה פרצופים שונים</strong> (צפייה חופשית, לא נדרשת שום תגובה).</li>
         <li><strong>מסך עם פרצוף אחד</strong> בו יהיה עליך להגיב, מהר ככל הניתן, האם:
-          <br>&nbsp;&nbsp;~ הפרצוף אכן הופיע במסך הקודם = לחיצה על האות <span style="color: #002060; font-weight: bold;">"I" (= כן)</span>
-          <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <span style="color: #002060; font-weight: bold;">"E" (= לא)</span>
+          <br>&nbsp;&nbsp;~ הפרצוף אכן הופיע במסך הקודם = לחיצה על האות <span style="color: #006400; font-weight: bold;">"I" (= כן)</span>
+          <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <span style="color: #8B0000; font-weight: bold;">"E" (= לא)</span>
         </li>
       </ul>
 
@@ -605,8 +606,8 @@ function screenIllustration(){
       <div class="mini-screen">
         <div style="position:absolute;top:6%;left:4%;right:4%;font-size:14px;font-weight:bold;text-align:center;color:#fff;line-height:1.25;">האם הפרצוף הזה הופיע במסך הקודם?</div>
         ${picture('P1.webp', 'center')}
-        <div style="position:absolute;bottom:6%;left:6%;font-size:16px;font-weight:bold;color:#002060;">E = לא</div>
-        <div style="position:absolute;bottom:6%;right:6%;font-size:16px;font-weight:bold;color:#002060;">I = כן</div>
+        <div style="position:absolute;bottom:6%;left:6%;font-size:16px;font-weight:bold;color:#8B0000;">E = לא</div>
+        <div style="position:absolute;bottom:6%;right:6%;font-size:16px;font-weight:bold;color:#006400;">I = כן</div>
       </div>
     </div>
 
@@ -822,7 +823,22 @@ function run6PointCalibration(onComplete, isSimulation = false) {
 
   function runNextPoint() {
     if (index >= points.length) {
-      if (!isSimulation && calibDataX.length >= 8) {
+      if (!isSimulation) {
+        if (calibDataX.length < 60) {
+          base(`
+            <div class="panel" style="text-align: center;">
+              <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
+              <p style="font-size: 22px; margin: 20px 0;">נראה שעיניך היו עצומות או שלא הבטת בנקודות הכיול בצורה רציפה.</p>
+              <p style="font-size: 20px;">נא להקפיד להביט על כל נקודה ועל הקווים המנחים בעניים פקוחות וללא תנועות ראש.</p>
+              <button class="btn" id="retryCalibBtn">נסה כיול שוב</button>
+            </div>
+          `);
+          document.getElementById('retryCalibBtn').onclick = () => {
+            run6PointCalibration(onComplete, isSimulation);
+          };
+          return;
+        }
+
         const X = calibDataX.map(d => d.feat);
         const Yx = calibDataX.map(d => d.target);
         const Yy = calibDataY.map(d => d.target);
@@ -886,17 +902,20 @@ function trial(row, done, isPractice = false){
   const loadPromise=preloadTrial(faces);
 
   run6PointCalibration(() => {
-    loadPromise.then(()=>{
+    loadPromise.then(async ()=>{
+      await Promise.all(faces.map(x => loadImageCached(x)));
       base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
       requestAnimationFrame(()=>{
-        const grid=document.querySelector('.trial-grid');
-        if(!grid)return;
-        grid.style.visibility='visible';
+        requestAnimationFrame(()=>{
+          const grid=document.querySelector('.trial-grid');
+          if(!grid)return;
+          grid.style.visibility='visible';
 
-        setTimeout(()=>{
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response(row,done, true),3000);
-        },5000);
+          setTimeout(()=>{
+            base('<div class="bottom-fix">+</div>');
+            setTimeout(()=>response(row,done, true),3000);
+          },5000);
+        });
       });
     }).catch(err=>{console.error('Trial preload failed',err);if(typeof done==='function')done();});
   }, isPractice);
@@ -1047,7 +1066,7 @@ function screenSessionBreak() {
 
   const proceed = () => {
     document.onkeydown = null;
-    screenFaceSetup(2); // מעבר לכללי אימות המצלמה של חלק 2
+    screenFaceSetup(2);
   };
 
   document.getElementById('breakContinueBtn').onclick = proceed;
@@ -1061,7 +1080,7 @@ function screenSessionBreak() {
 }
 
 function screenFaceSetup(block){
-  forceShowPopupUntil = performance.now() + 3000;
+  isFaceSetupScreen = true;
   const popup = document.getElementById('cameraPopup');
   if (popup) popup.classList.add('show');
 
@@ -1077,7 +1096,7 @@ function screenFaceSetup(block){
     if (!document.fullscreenElement) {
       enterFullscreen();
     }
-    forceShowPopupUntil = 0;
+    isFaceSetupScreen = false;
     document.getElementById('cameraPopup')?.classList.remove('show');
     screen13(block);
   }
@@ -1161,24 +1180,34 @@ function mainStart(block){
     const loadPromise=preloadTrial(faces);
 
     run6PointCalibration(() => {
-      loadPromise.then(() => {
-        base(`<div class="trial-grid">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-        
-        const t0=performance.now();
-        track(t0, sex, tno, r.ffi, r.ffl);
+      loadPromise.then(async () => {
+        await Promise.all(faces.map(x => loadImageCached(x)));
 
-        setTimeout(()=>{
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(()=>response([...faces,r.s,r.c], go, false, {
-            block: sex,
-            trial: tno,
-            ffi: r.ffi,
-            ffl: r.ffl,
-            singleStimulus: r.s,
-            isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
-            correctKey: r.c
-          }), 3000);
-        },5000);
+        base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
+        
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const grid = document.querySelector('.trial-grid');
+            if(!grid) return;
+            grid.style.visibility = 'visible';
+            
+            const t0=performance.now();
+            track(t0, sex, tno, r.ffi, r.ffl);
+
+            setTimeout(()=>{
+              base('<div class="bottom-fix">+</div>');
+              setTimeout(()=>response([...faces,r.s,r.c], go, false, {
+                block: sex,
+                trial: tno,
+                ffi: r.ffi,
+                ffl: r.ffl,
+                singleStimulus: r.s,
+                isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
+                correctKey: r.c
+              }), 3000);
+            },5000);
+          });
+        });
       }).catch(err=>{console.error('Main trial preload failed',err);go();});
     }, false);
   };
@@ -1224,6 +1253,7 @@ function track(t0, sex, trial, ffi, ffl){
       quadrant: quadrant,
       gaze_location: gaze_location,
       eof: eof,
+      HIF: isAligned ? 1 : 0,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight,
       phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
@@ -1409,7 +1439,7 @@ function buildRawGazeCSV() {
   const headers = [
     'participant', 'block', 'trial', 'ffi', 'ffl', 'timestamp', 
     'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'gaze_location', 
-    'eof', 'screenWidth', 'screenHeight', 'phase'
+    'eof', 'HIF', 'screenWidth', 'screenHeight', 'phase'
   ];
   const rows = [headers.join(',')];
 
