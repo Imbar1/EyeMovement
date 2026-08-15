@@ -509,9 +509,9 @@ function screen5(){
   base(`
     <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
       <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">נשים</span> מפורסמות. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים שה<span style="color: #8B0000; font-weight: bold;">הכי</span> מוכרות עבורך.</p>
-      <p style="font-size: 20px; margin-bottom: 10px;">** כדי לבחור תמונה יש ללחוץ עליה.</p>
-      <p style="font-size: 20px;">כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span>עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
+      <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
+      <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
       <div style="text-align: center; margin-top: 35px;">
         <button class="btn" onclick="screen6()">המשך</button>
       </div>
@@ -523,9 +523,9 @@ function screen7(){
   base(`
     <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
       <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">גברים</span> מפורסמים. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים שה<span style="color: #8B0000; font-weight: bold;">הכי</span> מוכרות עבורך.</p>
-      <p style="font-size: 20px; margin-bottom: 10px;">** כדי לבחור תמונה יש ללחוץ עליה.</p>
-      <p style="font-size: 20px;">כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span>עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
+      <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
+      <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
       <div style="text-align: center; margin-top: 35px;">
         <button class="btn" onclick="screen8()">המשך</button>
       </div>
@@ -591,7 +591,7 @@ function screenTaskInstructions(){
       </p>
 
       <div style="text-align: center; margin-top: 10px;">
-        <h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
+        <h3 style="color: #000000; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
         ${picture('NoHeadMovements.png', '')}
       </div>
 
@@ -1106,6 +1106,7 @@ function screenMovementInstructions(){
         במסכים הבאים ימדדו תנועות עינייך. <span style="border-bottom: 3px solid #8B0000; display: inline-block;">לשם כך עלייך להימנע ככל הניתן מתזוזות מיותרות!</span>
       </p>
       <div style="margin: 20px 0;">
+		<h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
         ${picture('NoHeadMovements.png', '')}
       </div>
       <button class="btn" id="movementContinue">המשך</button>
