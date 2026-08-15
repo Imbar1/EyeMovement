@@ -207,7 +207,7 @@ const storage = firebase.storage();
 // Variables & Data Structures
 // ==========================================
 const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
-const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','b_women_pics.jpg','b_men_pics.jpg','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','b_sig_rate.jpg','EM_instructions.jpg','NoHeadMovements.png',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
+const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','NoHeadMovements.png',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
 const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],practiceRunCount:0};
 const root=document.getElementById('app');
 
@@ -442,6 +442,11 @@ function initFaceMeshSystem() {
       popup.classList.add('bad', 'show');
       statusTxt.textContent = 'פנים לא זוהו';
     }
+
+    if (isFaceSetupScreen) {
+      const calBtn = document.getElementById('goCalBtn');
+      if (calBtn) calBtn.disabled = !isAligned;
+    }
   });
 
   cameraUtils = new Camera(video, {
@@ -484,7 +489,7 @@ function screen2(){
     <div class="panel consent-choice" style="max-width: 850px; text-align: right; direction: rtl;">
       <h2 style="text-align: center; color: #002060;">לניסוי זה שלוש דרישות:</h2>
       <ol style="font-size: 22px; line-height: 1.6; margin: 20px 0; padding-right: 25px;">
-        <li style="margin-bottom: 12px;">את ניסוי זה יש לבצע עם לפטופ בעל מצלמה מובנית בלבד (לא מחשב שולחני עם חיבור מצלמת רשת).</li>
+        <li style="margin-bottom: 12px;">יש לבצע את הניסוי עם לפטופ בעל מצלמה מובנית בלבד (לא מחשב שולחני עם חיבור מצלמת רשת).</li>
         <li style="margin-bottom: 12px;">יש איסור לחבר מסך חיצוני ללפטופ בזמן ביצוע הניסוי.</li>
         <li style="margin-bottom: 12px;">ניתן לבצע ניסוי זה בתנאי שאינך מרכיב/ה משקפיי ראייה מקרוב.</li>
       </ol>
@@ -499,9 +504,34 @@ function screen2(){
 }
 
 function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
-function instr(pic,next){base(`${picture(pic,'slide')}<button class="btn" id="b">המשך</button>`);b.onclick=window[next]};
-function screen5(){instr('b_women_pics.jpg','screen6')}
-function screen7(){instr('b_men_pics.jpg','screen8')}
+
+function screen5(){
+  base(`
+    <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
+      <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">נשים</span> מפורסמות. עלייך לעין בכלל התמונות!</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים שה<span style="color: #8B0000; font-weight: bold;">הכי</span> מוכרות עבורך.</p>
+      <p style="font-size: 20px; margin-bottom: 10px;">** כדי לבחור תמונה יש ללחוץ עליה.</p>
+      <p style="font-size: 20px;">כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
+      <div style="text-align: center; margin-top: 35px;">
+        <button class="btn" onclick="screen6()">המשך</button>
+      </div>
+    </div>
+  `);
+}
+
+function screen7(){
+  base(`
+    <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
+      <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">גברים</span> מפורסמים. עלייך לעין בכלל התמונות!</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים שה<span style="color: #8B0000; font-weight: bold;">הכי</span> מוכרות עבורך.</p>
+      <p style="font-size: 20px; margin-bottom: 10px;">** כדי לבחור תמונה יש ללחוץ עליה.</p>
+      <p style="font-size: 20px;">כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
+      <div style="text-align: center; margin-top: 35px;">
+        <button class="btn" onclick="screen8()">המשך</button>
+      </div>
+    </div>
+  `);
+}
 
 function choose(g){
   const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);
@@ -545,11 +575,15 @@ function screenTaskInstructions(){
       </ul>
 
       <p style="font-size: 20px; margin-bottom: 12px;">
-        • פעולה זו תחזור על עצמה כמה וכמה פעמים.
+        * פעולה זו תחזור על עצמה כמה וכמה פעמים.
       </p>
 
       <p style="font-size: 19px; margin-bottom: 10px;">
-        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל, בראש יציב וללא תנועות, על 6 נקודות שיתחלפו זו לאחר זו.
+        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל על 6 נקודות שיתחלפו זו לאחר זו.
+      </p>
+
+      <p style="font-size: 19px; margin-bottom: 10px; color: #ffea00; font-weight: bold;">
+        *בשלב הכיול ובמסך של ארבעת הפרצופים שלאחריו – יש לשמור על ראש יציב וללא תנועות, <u style="text-decoration: underline;">זה עניין קריטי!</u>
       </p>
 
       <p style="font-size: 19px; margin-bottom: 14px;">
@@ -663,8 +697,24 @@ function screenIllustration(){
 
   document.getElementById('illusGo').onclick = () => {
     if(miniCalibTimer) clearTimeout(miniCalibTimer);
-    screenPracticeInstructions();
+    screenIncentive();
   };
+}
+
+function screenIncentive(){
+  if(miniCalibTimer) clearTimeout(miniCalibTimer);
+  base(`
+    <div class="panel consent-choice" style="max-width: 850px; text-align: center; padding: 30px; direction: rtl; font-size: 24px; line-height: 1.6;">
+      <p style="margin-bottom: 20px;">
+        משימה זו מודדת יכולת קוגניטיבית חשובה: היכולת לזהות ולזכור פרצופים. רוב המשתתפים מגיעים לדיוק של כ-80%. נסו לבצע זאת בצורה מדויקת אפילו יותר.
+      </p>
+      <p style="margin-bottom: 30px; font-weight: bold; color: #ffea00;">
+        אם תצליחו לבצע את המשימה בדיוק גבוה יותר, תיכנסו להגרלה על כרטיס BuyMe בשווי 150 ₪ 😊
+      </p>
+      <button class="btn" id="incGoBtn">המשך</button>
+    </div>
+  `);
+  document.getElementById('incGoBtn').onclick = () => screenPracticeInstructions();
 }
 
 function screenPracticeInstructions(){
@@ -688,7 +738,7 @@ function screenPracticeInstructions(){
 
   document.getElementById('pracBackBtn').onclick = () => {
     document.onkeydown = null;
-    screenIllustration();
+    screenIncentive();
   };
 
   k(e => {
@@ -1050,7 +1100,24 @@ function practice(){
 }
 
 function screenMovementInstructions(){
-  base(`${picture('EM_instructions.jpg','slide')}<button class="btn" id="movementContinue">המשך</button>`);
+  base(`
+    <div class="panel" style="text-align: center; max-width: 850px; direction: rtl; font-size: 24px; line-height: 1.6; padding: 30px;">
+      <p style="margin-bottom: 20px;">
+        במסכים הבאים ימדדו תנועות עינייך. <span style="border-bottom: 3px solid #8B0000; display: inline-block;">לשם כך עלייך להימנע ככל הניתן מתזוזות מיותרות!</span>
+      </p>
+      <div style="margin: 20px 0;">
+        ${picture('NoHeadMovements.png', '')}
+      </div>
+      <button class="btn" id="movementContinue">המשך</button>
+    </div>
+  `);
+  const img = document.querySelector('.panel img');
+  if(img) {
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '25vh';
+    img.style.borderRadius = '8px';
+    img.style.objectFit = 'contain';
+  }
   document.getElementById('movementContinue').addEventListener('click',()=>screen12(1));
 }
 
@@ -1105,7 +1172,7 @@ function screenFaceSetup(block){
       <h2>אימות מיקום הפנים - חלק ${block}</h2>
       <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
       <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך".</p>
-      <button class="btn" id="goCalBtn">המשך</button>
+      <button class="btn" id="goCalBtn" disabled>המשך</button>
     </div>
   `);
   document.getElementById('goCalBtn').onclick = () => {
@@ -1133,7 +1200,7 @@ function screen13(block){
   k(e=>{if(e.code==='Space')countdown(block===1?'main':'block2')});
 }
 
-function mainStart(block){
+async function mainStart(block){
   showFeedback=false;
   document.body.style.cursor = 'none';
   
@@ -1142,7 +1209,7 @@ function mainStart(block){
   const familiar=(sex==='F'?S.female:S.male).map(x=>String(x).split('/').pop());
   const f1=familiar[0]||`${sex}1.webp`,f2=familiar[1]||`${sex}2.webp`;
   
-  const rows=sex==='F'?[
+  const rawRows=sex==='F'?[
     {ffi:1, ffl:1, p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'], s:'UNf6.webp', c:'e'},
     {ffi:1, ffl:2, p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'], s:f1, c:'i'},
     {ffi:1, ffl:3, p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'], s:'UNf5.webp', c:'e'},
@@ -1159,7 +1226,7 @@ function mainStart(block){
     {ffi:0, ffl:0, p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'], s:'UNf4.webp', c:'i'},
     {ffi:0, ffl:0, p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'], s:f2, c:'e'},
     {ffi:0, ffl:0, p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'], s:'UNf2.webp', c:'i'}
-  ].sort(()=>Math.random()-.5):[
+  ]:[
     {ffi:1, ffl:1, p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'], s:'UNm6.webp', c:'e'},
     {ffi:1, ffl:2, p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'], s:f1, c:'i'},
     {ffi:1, ffl:3, p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'], s:'UNm5.webp', c:'e'},
@@ -1176,7 +1243,17 @@ function mainStart(block){
     {ffi:0, ffl:0, p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'], s:'UNm4.webp', c:'i'},
     {ffi:0, ffl:0, p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'], s:f2, c:'e'},
     {ffi:0, ffl:0, p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'], s:'UNm2.webp', c:'i'}
-  ].sort(()=>Math.random()-.5);
+  ];
+
+  const rows = [...rawRows].sort(()=>Math.random()-.5);
+
+  const allBlockImages = new Set();
+  rows.forEach(r => {
+    r.p.forEach(img => allBlockImages.add(String(img).endsWith('.webp')?String(img):String(img)+'.webp'));
+    allBlockImages.add(String(r.s).endsWith('.webp')?String(r.s):String(r.s)+'.webp');
+  });
+  
+  await Promise.all([...allBlockImages].map(img => loadImageCached(img)));
 
   let trialIndex=0;
   const go=()=>{
@@ -1288,8 +1365,18 @@ function screen16(){
     popup.classList.remove('show', 'good', 'bad');
     popup.style.display = 'none';
   }
-  base('<div class="panel"><h2>מעקב העיניים הסתיים</h2><p>אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p></div><button class="btn" id="b">המשך</button>');
-  b.onclick=()=>instr('b_sig_rate.jpg','ratings');
+  base(`
+    <div class="panel" style="text-align: center; max-width: 850px; direction: rtl; font-size: 24px; line-height: 1.6; padding: 30px;">
+      <h2>מעקב העיניים הסתיים</h2>
+      <p style="margin-bottom: 20px;">אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p>
+      <p>בשלב הבא יש לדרג (בסולם של 1-9) את המידה בה כל פרצוף תפס לך את העין.</p>
+      <p style="margin-top: 15px; margin-bottom: 10px;">כאשר:</p>
+      <p><span style="color: #002060; font-weight: bold;">1</span> = במידה מועטה מאוד</p>
+      <p><span style="color: #002060; font-weight: bold;">9</span> = במידה רבה מאוד</p>
+      <button class="btn" id="b" style="margin-top: 30px;">המשך</button>
+    </div>
+  `);
+  document.getElementById('b').onclick=()=>ratings();
 }
 
 function ratings(){
@@ -1328,7 +1415,6 @@ function buildSummaryCSV() {
   const pct = (num, den) => den ? ((num / den) * 100) : null;
   const fmt = val => (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(2) : '';
 
-  // 1. Gaze relative looking time at familiar face (EOF %)
   const calcGazePct = (blockFilter = null, phaseName = 'Phase1') => {
     const samples = S.raw.filter(r => r.ffi === 1 && r.phase === phaseName && (blockFilter === null || r.block === blockFilter));
     if (!samples.length) return null;
@@ -1343,7 +1429,6 @@ function buildSummaryCSV() {
   const gazePctP1Male = calcGazePct('M', 'Phase1');
   const gazePctP2Male = calcGazePct('M', 'Phase2');
 
-  // 2. Single Display Performance Metrics
   const rtOverall = mean(mainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errOverall = pct(mainTrials.filter(t => !t.correct || t.timeout).length, mainTrials.length);
 
@@ -1363,7 +1448,6 @@ function buildSummaryCSV() {
   const rtNo = mean(noTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errNo = pct(noTrials.filter(t => !t.correct || t.timeout).length, noTrials.length);
 
-  // 3. Face Ratings
   const familiarSet = new Set([...S.female, ...S.male].map(x => String(x).split('/').pop()));
   const famRatings = S.ratings.filter(r => familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
   const unfamRatings = S.ratings.filter(r => !familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
@@ -1371,7 +1455,6 @@ function buildSummaryCSV() {
   const ratingFamMean = mean(famRatings);
   const ratingUnfamMean = mean(unfamRatings);
 
-  // Build CSV
   const rows = [];
 
   rows.push('--- AGGREGATED SUMMARY METRICS ---');
