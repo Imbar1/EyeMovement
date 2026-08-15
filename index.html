@@ -509,7 +509,7 @@ function screen5(){
   base(`
     <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
       <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">נשים</span> מפורסמות. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span>עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
       <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
       <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
       <div style="text-align: center; margin-top: 35px;">
@@ -523,7 +523,7 @@ function screen7(){
   base(`
     <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
       <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">גברים</span> מפורסמים. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span>עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
+      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
       <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
       <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
       <div style="text-align: center; margin-top: 35px;">
@@ -591,7 +591,7 @@ function screenTaskInstructions(){
       </p>
 
       <div style="text-align: center; margin-top: 10px;">
-        <h3 style="color: #000000; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
+        <h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
         ${picture('NoHeadMovements.png', '')}
       </div>
 
@@ -964,26 +964,50 @@ function run6PointCalibration(onComplete, isSimulation = false) {
 }
 
 function trial(row, done, isPractice = false){
-  const faces=row.slice(0,4).map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-  const loadPromise=preloadTrial(faces);
+  const faces = row.slice(0, 4).map(x => String(x).endsWith('.webp') ? String(x) : String(x) + '.webp');
+  const loadPromise = preloadTrial(faces);
 
   run6PointCalibration(() => {
-    loadPromise.then(async ()=>{
-      await Promise.all(faces.map(x => loadImageCached(x)));
-      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,i)=>picture(x,'pos p'+(i+1))).join('')}</div>`);
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          const grid=document.querySelector('.trial-grid');
-          if(!grid)return;
-          grid.style.visibility='visible';
+    loadPromise.then(async () => {
+      // 1. טעינה ופענוח (Decode) מלא בזיכרון לכל 4 התמונות
+      const imgElements = await Promise.all(faces.map(x => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.className = 'pos p' + (faces.indexOf(x) + 1);
+          img.onload = async () => {
+            try {
+              if (img.decode) await img.decode(); // ממתין לפענוח מלא של הפיקסלים
+            } catch(e) {}
+            resolve(img);
+          };
+          img.onerror = () => resolve(img);
+          img.src = assetUrl(x);
+        });
+      }));
 
-          setTimeout(()=>{
+      // 2. יצירת ה-DOM והסתרת הגריד ראשונית
+      base(`<div class="trial-grid" style="visibility:hidden"></div>`);
+      const grid = document.querySelector('.trial-grid');
+      
+      // הוספת התמונות שכבר פוענחו
+      imgElements.forEach(img => grid.appendChild(img));
+
+      // 3. הופעה סינכרונית מדויקת באותו פריים
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!grid) return;
+          grid.style.visibility = 'visible';
+
+          setTimeout(() => {
             base('<div class="bottom-fix">+</div>');
-            setTimeout(()=>response(row,done, true),3000);
-          },5000);
+            setTimeout(() => response(row, done, true), 3000);
+          }, 5000);
         });
       });
-    }).catch(err=>{console.error('Trial preload failed',err);if(typeof done==='function')done();});
+    }).catch(err => {
+      console.error('Trial preload failed', err);
+      if (typeof done === 'function') done();
+    });
   }, isPractice);
 }
 
