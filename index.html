@@ -215,6 +215,7 @@ let practiceErrors = 0;
 let miniCalibTimer = null;
 let forceShowPopupUntil = 0;
 let isFaceSetupScreen = false;
+let totalCalibSamples = 0;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -932,6 +933,7 @@ function run6PointCalibration(onComplete, isSimulation = false) {
       const targetX = (pt.x / 100) * window.innerWidth;
       const targetY = (pt.y / 100) * window.innerHeight;
       const startTimePoint = performance.now();
+      const duration = 1200;Variables
       const duration = 1200;
       const ignoreInitialMs = 250;
       let lastSampleTime = 0;
