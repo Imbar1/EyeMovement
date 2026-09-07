@@ -264,7 +264,6 @@ let cameraUtils = null;
 let currentFeatures = null;
 let calibDataX = [];
 let calibDataY = [];
-let totalCalibSamples = 0;
 let weightsX = null;
 let weightsY = null;
 
@@ -857,8 +856,6 @@ function runTransition(fromPt, toPt, duration, onComplete) {
   requestAnimationFrame(step);
 }
 
-let totalCalibSamples = 0; // ודאי שמשתנה זה מוגדר בראש הקובץ
-
 function run6PointCalibration(onComplete, isSimulation = false) {
   document.getElementById('cameraPopup')?.classList.remove('show');
 
@@ -933,7 +930,6 @@ function run6PointCalibration(onComplete, isSimulation = false) {
       const targetX = (pt.x / 100) * window.innerWidth;
       const targetY = (pt.y / 100) * window.innerHeight;
       const startTimePoint = performance.now();
-      const duration = 1200;Variables
       const duration = 1200;
       const ignoreInitialMs = 250;
       let lastSampleTime = 0;
@@ -1673,4 +1669,4 @@ function exit(t){
 preload();
 </script>
 </body>
-</html>`
+</html>
