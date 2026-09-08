@@ -216,6 +216,7 @@ let miniCalibTimer = null;
 let forceShowPopupUntil = 0;
 let isFaceSetupScreen = false;
 let totalCalibSamples = 0;
+let currentTrialCalibAttempts = 0;
 
 const imageCache=new Map();
 function loadImageCached(name){
@@ -562,7 +563,7 @@ function screenTaskInstructions(){
       </p>
 
       <p style="font-size: 20px; margin-bottom: 12px;">
-        • בניסוי יהיו שני סשנים: אחד שיכלול רק פרצופים של נשים ואחד שיכלול רק פרצופים של גברים (הסדר נקבע באופן אקראי). בין הסשנים תוכל/י לקחת כמה שניות לרענן את העיניים.
+        בניסוי יהיו שני סשנים: אחד שיכלול רק פרצופים של נשים ואחד שיכלול רק פרצופים של גברים (הסדר נקבע באופן אקראי). בין הסשנים תוכל/י לקחת כמה שניות לרענן את העיניים.
       </p>
 
       <p style="font-size: 20px; margin-bottom: 8px;">כל פעם יופיעו שתי תצוגות מרכזיות:</p>
@@ -573,6 +574,10 @@ function screenTaskInstructions(){
           <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <span style="color: #8B0000; font-weight: bold;">"E" (= לא)</span>
         </li>
       </ul>
+
+      <p style="font-size: 19px; margin-bottom: 14px;">
+        בין המסכים יופיע הסימן <strong>+</strong> בתחתית המסך.
+      </p>
 
       <p style="font-size: 20px; margin-bottom: 12px;">
         * פעולה זו תחזור על עצמה כמה וכמה פעמים.
@@ -586,12 +591,8 @@ function screenTaskInstructions(){
         *בשלב הכיול ובמסך של ארבעת הפרצופים שלאחריו – יש לשמור על ראש יציב וללא תנועות, <u style="text-decoration: underline;">זה עניין קריטי!</u>
       </p>
 
-      <p style="font-size: 19px; margin-bottom: 14px;">
-        בין המסכים יופיע הסימן <strong>+</strong> בתחתית המסך.
-      </p>
-
       <div style="text-align: center; margin-top: 10px;">
-        <h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
+        <h3 style="color: #000000; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
         ${picture('NoHeadMovements.png', '')}
       </div>
 
@@ -657,7 +658,7 @@ function screenIllustration(){
 
     <div style="margin-top: 14px; display: flex; gap: 16px; justify-content: center; direction: rtl;">
       <button class="btn no-btn" id="illusBack">חזרה להוראות</button>
-      <button class="btn" id="illusGo">המשך</button>
+      <button class="btn" id="illusGo" disabled style="background:#777;color:#ddd;cursor:not-allowed;">המשך (5s)</button>
     </div>
   `);
 
@@ -690,12 +691,32 @@ function screenIllustration(){
 
   startMiniCalibAnimation();
 
+  const goBtn = document.getElementById('illusGo');
+  let secondsLeft = 5;
+  const interval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft > 0) {
+      if (goBtn) goBtn.textContent = `המשך (${secondsLeft}s)`;
+    } else {
+      clearInterval(interval);
+      if (goBtn) {
+        goBtn.disabled = false;
+        goBtn.style.background = '#4f8f52';
+        goBtn.style.color = '#fff';
+        goBtn.style.cursor = 'pointer';
+        goBtn.textContent = 'המשך';
+      }
+    }
+  }, 1000);
+
   document.getElementById('illusBack').onclick = () => {
+    clearInterval(interval);
     if(miniCalibTimer) clearTimeout(miniCalibTimer);
     screenTaskInstructions();
   };
 
-  document.getElementById('illusGo').onclick = () => {
+  goBtn.onclick = () => {
+    clearInterval(interval);
     if(miniCalibTimer) clearTimeout(miniCalibTimer);
     screenIncentive();
   };
@@ -883,7 +904,6 @@ function run6PointCalibration(onComplete, isSimulation = false) {
       if (!isSimulation) {
         const validSamples = calibDataX.length;
         
-        // נדרשות לפחות 35 דגימות תקינות בסך הכל וגם לפחות 50% דגימות תקינות מכלל הזמן
         const minRequiredValid = 35;
         const isValid = validSamples >= minRequiredValid && (totalCalibSamples === 0 || (validSamples / totalCalibSamples) >= 0.5);
 
@@ -900,6 +920,7 @@ function run6PointCalibration(onComplete, isSimulation = false) {
             if (e.code === 'Space' || e.key === ' ') {
               e.preventDefault();
               document.onkeydown = null;
+              currentTrialCalibAttempts++;
               run6PointCalibration(onComplete, isSimulation);
             }
           });
@@ -938,12 +959,10 @@ function run6PointCalibration(onComplete, isSimulation = false) {
         const elapsed = now - startTimePoint;
 
         if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
-          // דגימה בקצב קבוע של כ-30ms כדי להבטיח תאימות בין מסכים שונים
           if (now - lastSampleTime >= 30) {
             lastSampleTime = now;
             totalCalibSamples++;
 
-            // דגימה נחשבת תקפה רק אם הפנים זוהו וגם ממוקמות במרכז המסגרת
             const faceCentered = typeof isAligned !== 'undefined' ? isAligned : true;
             if (currentFeatures && faceCentered) {
               calibDataX.push({ feat: [...currentFeatures], target: targetX });
@@ -973,62 +992,27 @@ function run6PointCalibration(onComplete, isSimulation = false) {
   runNextPoint();
 }
 
-// פונקציה שטוענת ומפענחת מראש את כל התמונות של הבלוק האמיתי
-async function preloadBlock(blockRows) {
-  // 1. איסוף כל שמות הקבצים מכל השורות בבלוק
-  const allImages = blockRows.flatMap(row => 
-    row.slice(0, 4).map(x => String(x).endsWith('.webp') ? String(x) : String(x) + '.webp')
-  );
-  
-  // סינון כפילויות כדי לא לטעון את אותה תמונה פעמיים
-  const uniqueImages = [...new Set(allImages)];
-
-  // 2. טעינה ופענוח בזיכרון של כל התמונות במקביל
-  await Promise.all(uniqueImages.map(imgName => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = async () => {
-        try {
-          if (img.decode) await img.decode(); // מביא את הפיקסלים ל-GPU מראש
-        } catch(e) {}
-        resolve();
-      };
-      img.onerror = () => resolve();
-      img.src = assetUrl(imgName);
-    });
-  }));
-}
-
-async function startRealBlock(rawRows) {
-  // א. רנדומיזציה של השורות מראש!
-  const randomizedRows = shuffleArray([...rawRows]); // השתמשי בפונקציית הרינדום שלך
-
-  // ב. המתנה לטעינה ופענוח מלא של כל התמונות בבלוק
-  await preloadBlock(randomizedRows);
-
-  // ג. רק עכשיו מפעילים את הניסוי/הלולאה עם השורות המורנדמות!
-  runTrialsLoop(randomizedRows); 
-}
-
 function trial(row, done, isPractice = false){
+  currentTrialCalibAttempts = 1;
   const faces = row.slice(0, 4).map(x => String(x).endsWith('.webp') ? String(x) : String(x) + '.webp');
 
   run6PointCalibration(() => {
-    // 1. יצירת ה-DOM עם ה-HTML המקורי (הדפדפן ימשוך ישירות מה-Cache המפוענח)
     base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x, i) => picture(x, 'pos p' + (i + 1))).join('')}</div>`);
     
-    // 2. הצגה סינכרונית מיידית באותו הפריים
-    requestAnimationFrame(() => {
+    const imgElements = Array.from(document.querySelectorAll('.trial-grid img'));
+    Promise.all(imgElements.map(img => img.decode ? img.decode().catch(()=>{}) : Promise.resolve())).then(() => {
       requestAnimationFrame(() => {
-        const grid = document.querySelector('.trial-grid');
-        if (!grid) return;
+        requestAnimationFrame(() => {
+          const grid = document.querySelector('.trial-grid');
+          if (!grid) return;
 
-        grid.style.visibility = 'visible';
+          grid.style.visibility = 'visible';
 
-        setTimeout(() => {
-          base('<div class="bottom-fix">+</div>');
-          setTimeout(() => response(row, done, true), 3000);
-        }, 5000);
+          setTimeout(() => {
+            base('<div class="bottom-fix">+</div>');
+            setTimeout(() => response(row, done, true), 3000);
+          }, 5000);
+        });
       });
     });
   }, isPractice);
@@ -1070,7 +1054,9 @@ function response(row, done, isPractice = false, trialMeta = null){
         key: q,
         correct: isCorrect,
         timeout: false,
-        rt: performance.now() - t
+        rt: performance.now() - t,
+        calibAttempts: trialMeta.calibAttempts || 1,
+        excluded: (trialMeta.calibAttempts || 1) > 3
       });
       autoSavePartial();
     }
@@ -1102,7 +1088,9 @@ function response(row, done, isPractice = false, trialMeta = null){
         key: null,
         correct: false,
         timeout: true,
-        rt: null
+        rt: null,
+        calibAttempts: trialMeta.calibAttempts || 1,
+        excluded: (trialMeta.calibAttempts || 1) > 3
       });
       autoSavePartial();
     }
@@ -1229,8 +1217,27 @@ function screenFaceSetup(block){
     }
     isFaceSetupScreen = false;
     document.getElementById('cameraPopup')?.classList.remove('show');
-    screen13(block);
+    if (block === 1) {
+      screenPreRealTask();
+    } else {
+      screen13(block);
+    }
   }
+}
+
+function screenPreRealTask(){
+  base(`
+    <div class="panel" style="text-align: center; max-width: 800px; padding: 40px; direction: rtl;">
+      <div style="border: 3px solid #002060; border-radius: 12px; padding: 30px; background: rgba(0,32,96,0.2); margin-bottom: 30px;">
+        <h2 style="font-size: 32px; color: #fff; margin: 0;">בעוד רגע תתחיל המשימה האמיתית :)</h2>
+      </div>
+      <button class="btn" id="btnStartRealTask" style="font-size: 24px; padding: 14px 32px; background-color: #4f8f52;">אני מוכן/נה, אפשר להתחיל</button>
+    </div>
+  `);
+
+  document.getElementById('btnStartRealTask').onclick = () => {
+    screen13(1);
+  };
 }
 
 function screen13(block){
@@ -1318,14 +1325,13 @@ async function mainStart(block){
     const faces=r.p.map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
     const tno=trialIndex;
 
-    const loadPromise=preloadTrial(faces);
+    currentTrialCalibAttempts = 1;
 
     run6PointCalibration(() => {
-      loadPromise.then(async () => {
-        await Promise.all(faces.map(x => loadImageCached(x)));
-
-        base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-        
+      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
+      
+      const imgElements = Array.from(document.querySelectorAll('.trial-grid img'));
+      Promise.all(imgElements.map(img => img.decode ? img.decode().catch(()=>{}) : Promise.resolve())).then(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const grid = document.querySelector('.trial-grid');
@@ -1344,12 +1350,13 @@ async function mainStart(block){
                 ffl: r.ffl,
                 singleStimulus: r.s,
                 isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
-                correctKey: r.c
+                correctKey: r.c,
+                calibAttempts: currentTrialCalibAttempts
               }), 3000);
             },5000);
           });
         });
-      }).catch(err=>{console.error('Main trial preload failed',err);go();});
+      });
     }, false);
   };
   go();
@@ -1457,11 +1464,15 @@ function ratings(){
 // CSV Conversion & Download Helpers
 // ==========================================
 function buildSummaryCSV() {
-  const mainTrials = S.trials.filter(t => t.phase === 'main');
+  const allMainTrials = S.trials.filter(t => t.phase === 'main');
+  const validMainTrials = allMainTrials.filter(t => !t.excluded);
 
   const mean = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
   const pct = (num, den) => den ? ((num / den) * 100) : null;
   const fmt = val => (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(2) : '';
+
+  const noOfExcludedTrials = allMainTrials.filter(t => t.excluded).length;
+  const perOfExcludedTrials = pct(noOfExcludedTrials, allMainTrials.length);
 
   const calcGazePct = (blockFilter = null, phaseName = 'Phase1') => {
     const samples = S.raw.filter(r => r.ffi === 1 && r.phase === phaseName && (blockFilter === null || r.block === blockFilter));
@@ -1477,22 +1488,22 @@ function buildSummaryCSV() {
   const gazePctP1Male = calcGazePct('M', 'Phase1');
   const gazePctP2Male = calcGazePct('M', 'Phase2');
 
-  const rtOverall = mean(mainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errOverall = pct(mainTrials.filter(t => !t.correct || t.timeout).length, mainTrials.length);
+  const rtOverall = mean(validMainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
+  const errOverall = pct(validMainTrials.filter(t => !t.correct || t.timeout).length, validMainTrials.length);
 
-  const famStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 1);
+  const famStimTrials = validMainTrials.filter(t => t.isFamiliarStimulus === 1);
   const rtFamStim = mean(famStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errFamStim = pct(famStimTrials.filter(t => !t.correct || t.timeout).length, famStimTrials.length);
 
-  const unfamStimTrials = mainTrials.filter(t => t.isFamiliarStimulus === 0);
+  const unfamStimTrials = validMainTrials.filter(t => t.isFamiliarStimulus === 0);
   const rtUnfamStim = mean(unfamStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errUnfamStim = pct(unfamStimTrials.filter(t => !t.correct || t.timeout).length, unfamStimTrials.length);
 
-  const yesTrials = mainTrials.filter(t => t.correctKey === 'i');
+  const yesTrials = validMainTrials.filter(t => t.correctKey === 'i');
   const rtYes = mean(yesTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errYes = pct(yesTrials.filter(t => !t.correct || t.timeout).length, yesTrials.length);
 
-  const noTrials = mainTrials.filter(t => t.correctKey === 'e');
+  const noTrials = validMainTrials.filter(t => t.correctKey === 'e');
   const rtNo = mean(noTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
   const errNo = pct(noTrials.filter(t => !t.correct || t.timeout).length, noTrials.length);
 
@@ -1508,6 +1519,7 @@ function buildSummaryCSV() {
   rows.push('--- AGGREGATED SUMMARY METRICS ---');
   const summaryHeaders = [
     'participant', 'age', 'gender', 'practice_runs_count',
+    'NoOfExcludedTrials', 'PerOfExcludedTrials',
     'gaze_pct_fam_phase1_overall', 'gaze_pct_fam_phase2_overall',
     'gaze_pct_fam_phase1_female', 'gaze_pct_fam_phase2_female',
     'gaze_pct_fam_phase1_male', 'gaze_pct_fam_phase2_male',
@@ -1522,6 +1534,7 @@ function buildSummaryCSV() {
 
   const summaryValues = [
     `"${S.id}"`, `"${S.age}"`, `"${S.gender}"`, `"${S.practiceRunCount || 1}"`,
+    `"${noOfExcludedTrials}"`, `"${fmt(perOfExcludedTrials)}"`,
     `"${fmt(gazePctP1Overall)}"`, `"${fmt(gazePctP2Overall)}"`,
     `"${fmt(gazePctP1Female)}"`, `"${fmt(gazePctP2Female)}"`,
     `"${fmt(gazePctP1Male)}"`, `"${fmt(gazePctP2Male)}"`,
@@ -1540,11 +1553,11 @@ function buildSummaryCSV() {
   const trialHeaders = [
     'participant', 'block', 'trial', 'ffi', 'ffl', 'single_stimulus', 
     'is_familiar_stimulus', 'expected_answer', 'correct_key', 'response_key', 
-    'correct', 'timeout', 'rt_ms'
+    'correct', 'timeout', 'rt_ms', 'calibration_attempts', 'excluded'
   ];
   rows.push(trialHeaders.join(','));
 
-  mainTrials.forEach(t => {
+  allMainTrials.forEach(t => {
     rows.push([
       `"${S.id}"`,
       `"${t.block}"`,
@@ -1558,7 +1571,9 @@ function buildSummaryCSV() {
       `"${t.key || ''}"`,
       `"${t.correct ? 1 : 0}"`,
       `"${t.timeout ? 1 : 0}"`,
-      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`
+      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`,
+      `"${t.calibAttempts || 1}"`,
+      `"${t.excluded ? 1 : 0}"`
     ].join(','));
   });
 
