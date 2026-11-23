@@ -107,13 +107,15 @@ h2{font-size:30px;margin-top:0}
   direction: ltr;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  width: 96vw;
-  margin-top: 12px;
+  gap: 10px;
+  width: 100%;
+  margin: 16px auto 0 auto;
 }
 .mini-screen {
-  width: 21vw;
-  height: 29vh;
+  flex: 1;
+  max-width: 210px;
+  height: 21vh;
+  min-height: 155px;
   background: #808080;
   border: 2px solid #ffffff;
   border-radius: 10px;
@@ -121,6 +123,19 @@ h2{font-size:30px;margin-top:0}
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   direction: rtl;
+}
+.mini-shrink-ring {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  box-sizing: border-box;
+  animation: miniShrink 0.7s linear forwards;
+}
+@keyframes miniShrink {
+  0% { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0.1; }
 }
 .arrow-sep {
   font-size: 34px;
@@ -503,55 +518,123 @@ function screenRequirements() {
   document.getElementById('reqOk').onclick = screenInstructions;
 }
 
+let miniCalibTimer = null;
+
+function startMiniCalibAnimation() {
+  const container = document.getElementById('miniCalibAnimArea');
+  if (!container) return;
+
+  const pts = [
+    { x: 50, y: 50 },
+    { x: 18, y: 18 },
+    { x: 82, y: 18 },
+    { x: 82, y: 82 },
+    { x: 18, y: 82 },
+    { x: 50, y: 50 }
+  ];
+
+  let stepIdx = 0;
+
+  function playStep() {
+    if (!document.getElementById('miniCalibAnimArea')) return;
+    const curr = pts[stepIdx];
+    const next = pts[(stepIdx + 1) % pts.length];
+
+    container.innerHTML = `
+      <div style="position:absolute;left:${curr.x}%;top:${curr.y}%;transform:translate(-50%,-50%);width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
+        <div style="width:7px;height:7px;background:#ffffff;border:1px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 6px #ffffff;"></div>
+        <div class="mini-shrink-ring"></div>
+      </div>
+    `;
+
+    miniCalibTimer = setTimeout(() => {
+      let progress = 0;
+      function drawLineStep() {
+        if (!document.getElementById('miniCalibAnimArea')) return;
+        progress += 0.12;
+        if (progress > 1) progress = 1;
+        const curX = curr.x + (next.x - curr.x) * progress;
+        const curY = curr.y + (next.y - curr.y) * progress;
+
+        container.innerHTML = `
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+            <line x1="${curr.x}%" y1="${curr.y}%" x2="${curX}%" y2="${curY}%" stroke="#ffffff" stroke-dasharray="3 3" stroke-width="2" opacity="0.95" />
+          </svg>
+          <div style="position:absolute;left:${curX}%;top:${curY}%;transform:translate(-50%,-50%);width:6px;height:6px;background:#ffffff;border:1px solid #002060;border-radius:50%;box-shadow:0 0 4px #ffffff;"></div>
+        `;
+
+        if (progress < 1) {
+          miniCalibTimer = setTimeout(drawLineStep, 35);
+        } else {
+          stepIdx = (stepIdx + 1) % pts.length;
+          miniCalibTimer = setTimeout(playStep, 100);
+        }
+      }
+      drawLineStep();
+    }, 600);
+  }
+
+  playStep();
+}
+
 function screenInstructions() {
+  if (miniCalibTimer) clearTimeout(miniCalibTimer);
   base(`
-    <div class="panel" style="max-width: 960px; text-align: right; padding: 22px 32px;">
-      <h2 style="text-align: center; color: #002060; margin-bottom: 12px;">איך עובדת המשימה? (כ-3.5 דקות בלבד)</h2>
-      <p style="font-size: 20px; line-height: 1.5; margin-bottom: 10px;">
-        הניסוי כולל <strong>16 סבבים קצרים</strong>. בכל סבב יקרה הרצף הבא:
+    <div class="panel" style="width: min(1020px, 95vw); text-align: right; padding: 22px 30px;">
+      <h2 style="text-align: center; color: #002060; margin-bottom: 10px;">איך עובדת המשימה?</h2>
+      <p style="font-size: 20px; line-height: 1.5; margin-bottom: 8px;">
+        הניסוי קצר וכולל <strong>16 סבבים</strong>. בכל סבב יקרה הרצף הבא:
       </p>
       <ol style="font-size: 19px; line-height: 1.55; margin-bottom: 12px;">
-        <li><strong>כיול קצר (6 נקודות):</strong> עקוב/י בעיניים בלבד אחר הנקודה הלבנה (מרכז ➔ 4 פינות ➔ מרכז) <strong>מבלי להזיז את הראש כלל</strong>.</li>
-        <li><strong>4 פרצופים + מסגרת ירוקה קופצת (5 שניות):</strong> מיד אחרי נקודת המרכז האחרונה יופיעו 4 פרצופים:
-          <br>• ב-<strong>0.5 השניות הראשונות</strong>: צפייה חופשית.
-          <br>• מיד לאחר מכן תידלק <strong>מסגרת ירוקה בולטת</strong> סביב אחד הפרצופים למשך <strong>2.25 שניות</strong> – יש להסתכל ישירות עליו!
-          <br>• מיד אחריה המסגרת הירוקה <strong>תקפוץ לפרצוף אחר</strong> למשך <strong>2.25 שניות</strong> נוספות – יש להעביר אליו את המבט מיד ולהתמקד בו!
+        <li><strong>שלב כיול קצר:</strong> עקוב/י בעיניים בלבד אחר הנקודה הלבנה שנעה על המסך (מרכז ➔ פינות ➔ מרכז) <strong>מבלי להזיז את הראש כלל</strong>.</li>
+        <li><strong>הופעת 4 פרצופים ומסגרת ירוקה:</strong> מיד בסיום הכיול יופיעו 4 פרצופים:
+          <br>• לאחר רגע קצרצר תידלק <strong>מסגרת ירוקה בולטת</strong> סביב אחד הפרצופים – יש להסתכל ישירות עליו.
+          <br>• לאחר כמה רגעים המסגרת הירוקה <strong>תעבור לפרצוף אחר</strong> – יש להעביר אליו את המבט מיד ולהתמקד בו.
         </li>
-        <li><strong>סימן + למטה (1.5 שניות):</strong> מנוחה קצרה לעיניים לפני הסבב הבא (אין צורך ללחוץ על שום מקש!).</li>
+        <li><strong>מסך מנוחה קצר (+):</strong> מנוחה קצרה לעיניים לפני הסבב הבא (אין צורך ללחוץ על שום מקש).</li>
       </ol>
 
       <div class="illus-row">
         <div class="mini-screen">
-          <div style="font-size:13px;font-weight:bold;padding:4px;background:#002060;">1. צפייה חופשית (0.5s)</div>
-          <div class="mini-face" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
-          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
-          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
-          <div class="mini-face" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#8B0000;">1. כיול (ללא תזוזת ראש)</div>
+          <div id="miniCalibAnimArea" style="position:absolute;top:24px;left:0;right:0;bottom:0;"></div>
         </div>
         <div class="arrow-sep">➔</div>
         <div class="mini-screen">
-          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">2. מסגרת ראשונה (2.25s)</div>
-          <div class="mini-face active" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
-          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
-          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
-          <div class="mini-face" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#002060;">2. הופעת הפרצופים</div>
+          <div class="mini-face" style="left:6%;top:20%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:20%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:58%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face" style="left:54%;top:58%;">${picture('UNf4.webp')}</div>
         </div>
         <div class="arrow-sep">➔</div>
         <div class="mini-screen">
-          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">3. קפיצה למסגרת שנייה (2.25s)</div>
-          <div class="mini-face" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
-          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
-          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
-          <div class="mini-face active" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">3. מסגרת ירוקה ראשונה</div>
+          <div class="mini-face active" style="left:6%;top:20%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:20%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:58%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face" style="left:54%;top:58%;">${picture('UNf4.webp')}</div>
+        </div>
+        <div class="arrow-sep">➔</div>
+        <div class="mini-screen">
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">4. מעבר למסגרת שנייה</div>
+          <div class="mini-face" style="left:6%;top:20%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:20%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:58%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face active" style="left:54%;top:58%;">${picture('UNf4.webp')}</div>
         </div>
       </div>
 
-      <div style="text-align: center; margin-top: 14px;">
+      <div style="text-align: center; margin-top: 16px;">
         <button class="btn" id="instNext">הבנתי – הפעלת מצלמה</button>
       </div>
     </div>
   `);
-  document.getElementById('instNext').onclick = screenCameraInit;
+  startMiniCalibAnimation();
+  document.getElementById('instNext').onclick = () => {
+    if (miniCalibTimer) clearTimeout(miniCalibTimer);
+    screenCameraInit();
+  };
 }
 
 function screenCameraInit() {
@@ -1065,7 +1148,7 @@ function buildValidationSummaryCSV() {
 
     rows.push([
       `"${S.id}"`, `"${tr.trial}"`, `"${tr.block}"`,
-      `"${tr.faces[0]}"`, `"${tr.faces[1]}"`, `"${tr.faces[2]}"`, `"${tr.faces[3]}"`,
+      `"${tr.face1}"`, `"${tr.face2}"`, `"${tr.face3}"`, `"${tr.face4}"`,
       `"${tr.target1}"`, `"${tr.target2}"`,
       `"${fmt(acc1)}"`, `"${fmt(acc2)}"`,
       `"${fmt(lat1)}"`, `"${fmt(lat2)}"`,
