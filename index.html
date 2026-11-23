@@ -3,10 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>At First Glance</title>
-
-<!-- JSPsych -->
-<script src="https://unpkg.com/jspsych@8.2.1"></script>
+<title>Eye Tracking Validation Grid</title>
 
 <!-- MediaPipe Camera Utils, Face Mesh & Drawing Utils -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -16,7 +13,6 @@
 <!-- Firebase SDKs (Compat CDN) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -25,46 +21,63 @@ button,input,textarea,select{font-family:Calibri,Arial,sans-serif}
 body{overflow:hidden}
 .app{position:relative;width:100vw;height:100vh}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2vh 4vw}
-.hidden{display:none!important}
-.panel{max-width:900px;background:#0002;padding:24px;border-radius:14px}
-.consent-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:420px}
-.consent-form{width:min(920px,94vw);max-height:92vh;overflow-y:auto;text-align:right;line-height:1.55}
-.consent-form h2{text-align:center;margin-top:0;color:#002060}
-.consent-form p{margin:10px 0}
-.consent-actions{text-align:center;margin-top:18px}
-.consent-actions .btn{display:block;margin:10px auto;min-width:310px}
-h1{font-size:34px}
-h2{font-size:30px}
-.logo{position:absolute;top:3vh;left:20vw;width:60vw;height:17vh;object-fit:contain}
-.slide,.wide{width:70vw;height:58vh;object-fit:contain}
-.keyboard-nav{display:block;width:min(32vw,360px);height:auto;max-height:14vh;object-fit:contain;margin:8px auto 14px}
-.nav{position:absolute;bottom:5vh;left:15vw;width:15vw;height:6vh;object-fit:contain;cursor:pointer}
-.btn{font-size:22px;color:#fff;background:#4f8f52;border:0;border-radius:8px;padding:12px 28px;cursor:pointer;margin:8px;box-shadow:0 2px 5px #0005}
+.panel{max-width:900px;background:#0002;padding:28px 34px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.18)}
+h1{font-size:34px;margin-top:0}
+h2{font-size:30px;margin-top:0}
+.logo{position:absolute;top:3vh;left:20vw;width:60vw;height:15vh;object-fit:contain}
+.btn{font-size:22px;color:#fff;background:#4f8f52;border:0;border-radius:8px;padding:12px 28px;cursor:pointer;margin:8px;box-shadow:0 2px 5px #0005;transition:background 0.2s}
 .btn:hover{background:#5da660}
 .btn:disabled{background:#777;color:#ddd;cursor:not-allowed}
-.input{font-size:24px;padding:12px;text-align:center;direction:ltr}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:800px}
-.candidate{width:150px;height:150px;object-fit:cover;border:5px solid transparent;border-radius:8px;cursor:pointer}
-.candidate.sel{border-color:#002060}
-.fix{font-family:Arial,sans-serif;font-size:128px;font-weight:400;line-height:.8;color:#fff;text-shadow:none;letter-spacing:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.bottom-fix{position:absolute;left:0;right:0;bottom:7vh;top:auto;height:auto;display:block;text-align:center;font-family:Arial,sans-serif;font-size:128px;line-height:.8;color:#fff;font-weight:400} 
 .no-btn{background:#9b3f3f;color:#fff}
 .no-btn:hover{background:#ad4b4b}
-.count{font-size:110px}
+.input{font-size:22px;padding:10px 14px;text-align:center;direction:ltr;border-radius:6px;border:none;margin:6px 0 14px 0;min-width:220px}
+.count{font-size:110px;font-weight:bold}
+.status{min-height:28px;color:#ffe66d;font-weight:bold;font-size:20px}
 
 .trial-grid{position:absolute;inset:0}
+.face-card{
+  position:absolute;
+  width:32vw;
+  height:32vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:16px;
+  border:6px solid transparent;
+  transition:border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+.face-card img{
+  width:92%;
+  height:92%;
+  object-fit:contain;
+}
+.face-card.target-active{
+  border-color:#00ff66;
+  background-color:rgba(0, 255, 102, 0.16);
+  box-shadow:0 0 28px rgba(0, 255, 102, 0.85), inset 0 0 18px rgba(0, 255, 102, 0.35);
+}
+.target-badge{
+  position:absolute;
+  top:-18px;
+  background:#00ff66;
+  color:#002060;
+  font-weight:bold;
+  font-size:20px;
+  padding:2px 16px;
+  border-radius:20px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  display:none;
+}
+.face-card.target-active .target-badge{
+  display:block;
+}
 
-.pos{position:absolute;width:32vw;height:32vh;object-fit:contain}
 .p1{left:5vw;top:8vh}
 .p2{left:63vw;top:8vh}
 .p3{left:63vw;top:60vh}
 .p4{left:5vw;top:60vh}
-.center{position:absolute;left:30vw;top:30vh;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;display:block}
-.question{position:absolute;top:5vh;left:0;right:0;font-size:48px;font-weight:bold}
 
-.keys{position:absolute;bottom:5vh;left:0;right:0;height:10vh;font-size:54px;font-weight:bold;direction:ltr}
-.keys .yes{position:absolute;right:8vw;white-space:nowrap;color:#006400}
-.keys .no{position:absolute;left:8vw;white-space:nowrap;color:#8B0000}
+.bottom-fix{position:absolute;left:0;right:0;bottom:7vh;text-align:center;font-family:Arial,sans-serif;font-size:120px;line-height:.8;color:#fff;font-weight:400}
 
 .camera-popup{position:fixed;top:14px;left:14px;z-index:9999;background:#111c;padding:6px;border-radius:8px;display:none;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
 .camera-popup.show{display:block}
@@ -79,19 +92,10 @@ h2{font-size:30px}
 .calib-stage{position:absolute;inset:0;z-index:30;background:#808080}
 .calib-target{position:absolute;transform:translate(-50%,-50%);width:80px;height:80px;display:flex;align-items:center;justify-content:center}
 .calib-center-dot{width:16px;height:16px;background-color:#ffffff;border:2px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 10px #ffffff}
-
 .calib-ring{
-  width:70px;
-  height:70px;
-  border:4px solid #ffffff;
-  border-radius:50%;
-  position:absolute;
-  box-sizing:border-box;
-  transform-origin:center center;
-  animation:shrinkRing 1.2s linear forwards;
-  box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  width:70px;height:70px;border:4px solid #ffffff;border-radius:50%;position:absolute;box-sizing:border-box;
+  transform-origin:center center;animation:shrinkRing 1.2s linear forwards;box-shadow:0 0 6px rgba(255,255,255,0.6);
 }
-
 @keyframes shrinkRing {
   0% { transform: scale(2.0); opacity: 1; }
   100% { transform: scale(0); opacity: 0.1; }
@@ -103,74 +107,58 @@ h2{font-size:30px}
   direction: ltr;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  width: 98vw;
-  margin-top: 10px;
-}
-.illus-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 3px dashed #8B0000;
-  border-radius: 12px;
-  padding: 8px 14px 14px 14px;
-  background: rgba(139,0,0,0.12);
-  position: relative;
-}
-.illus-warning-header {
-  color: #8B0000;
-  font-size: 20px;
-  font-weight: bold;
-  background: #ffffff;
-  padding: 4px 18px;
-  border-radius: 8px;
-  border: 2px solid #8B0000;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  white-space: nowrap;
-  direction: rtl;
+  gap: 14px;
+  width: 96vw;
+  margin-top: 12px;
 }
 .mini-screen {
-  width: 19vw;
-  height: 28vh;
+  width: 21vw;
+  height: 29vh;
   background: #808080;
   border: 2px solid #ffffff;
-  border-radius: 8px;
+  border-radius: 10px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   direction: rtl;
 }
 .arrow-sep {
-  font-size: 36px;
+  font-size: 34px;
   color: #002060;
   font-weight: bold;
   user-select: none;
 }
-
-.mini-shrink-ring {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
+.mini-face {
   position: absolute;
-  box-sizing: border-box;
-  animation: miniShrink 0.7s linear forwards;
+  width: 40%;
+  height: 40%;
+  border-radius: 6px;
+  border: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-@keyframes miniShrink {
-  0% { transform: scale(1.8); opacity: 1; }
-  100% { transform: scale(0.2); opacity: 0.1; }
+.mini-face img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
 }
-
-.status{min-height:30px;color:#ffe66d}
-.selection-error{color:#9b3f3f;font-size:26px;font-weight:bold;min-height:34px}
-.rating-face{display:block;width:40vw;height:40vh;max-width:40vw;max-height:40vh;object-fit:contain;margin:2vh auto}
-
-.rating-instruction-text{font-size:28px;margin:20px 0;font-weight:bold}
-.rating-labels{display:flex;justify-content:space-between;width:80%;max-width:800px;margin:10px auto;font-size:24px;font-weight:bold}
-.scale{direction:ltr;margin-top:20px;display:flex;justify-content:center;gap:15px}
-.scale button{font-size:26px;width:55px;height:55px;background:#f0f0f0;color:#333;border:2px solid #ccc;border-radius:8px;cursor:pointer;transition:all 0.2s ease}
-.scale button:hover{background:#98fb98;border-color:#32cd32}
+.mini-face.active {
+  border-color: #00ff66;
+  background: rgba(0,255,102,0.18);
+  box-shadow: 0 0 10px rgba(0,255,102,0.8);
+}
+.progress-pill {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  background: rgba(0, 32, 96, 0.75);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: bold;
+  z-index: 50;
+}
 </style>
 </head>
 <body>
@@ -187,7 +175,7 @@ h2{font-size:30px}
 
 <script>
 // ==========================================
-// Firebase Initialization
+// Firebase Initialization (Same Project)
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyATnU0sw0n1cXNLEWI13m99WccZd1II0GE",
@@ -201,60 +189,54 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // ==========================================
-// Variables & Data Structures
+// Assets & State
 // ==========================================
-const A='https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
-const assets=['biu_logo.png','forward.png','only_forward.jpg','back_and_forward.jpg','glasses_YN.jpg','consent_pic.jpg','confir.png','SMT_instructions.jpg','SMT_example.jpg','twoSessInst.jpg','b_practice.jpg','b_STM.jpg','NoHeadMovements.png',...Array.from({length:10},(_,i)=>`P${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...Array.from({length:12},(_,i)=>`F${i+1}.webp`),...Array.from({length:12},(_,i)=>`M${i+1}.webp`)];
-const S={id:'',age:'',gender:'',female:[],male:[],raw:[],trials:[],ratings:[],practiceRunCount:0};
-const root=document.getElementById('app');
+const A = 'https://raw.githubusercontent.com/Imbar1/EyeMovement/main/resources/';
+const assets = [
+  'biu_logo.png',
+  'NoHeadMovements.png',
+  ...Array.from({length:14}, (_,i) => `UNf${i+1}.webp`),
+  ...Array.from({length:14}, (_,i) => `UNm${i+1}.webp`)
+];
 
-let practiceErrors = 0;
-let miniCalibTimer = null;
-let forceShowPopupUntil = 0;
+const S = {
+  id: '',
+  age: '',
+  gender: '',
+  raw: [],
+  trials: []
+};
+
+const root = document.getElementById('app');
 let isFaceSetupScreen = false;
 let totalCalibSamples = 0;
 let currentTrialCalibAttempts = 0;
 
-const imageCache=new Map();
-function loadImageCached(name){
-  const key=String(name).split('/').pop();
-  if(imageCache.has(key)) return imageCache.get(key);
-  const p=new Promise(resolve=>{
-    const im=new Image();
-    im.decoding='async';
-    im.onload=async()=>{try{if(im.decode) await im.decode()}catch(e){} resolve(im)};
-    im.onerror=()=>{console.warn('Asset failed to load:',key);resolve(null)};
-    im.src=assetUrl(key);
+const imageCache = new Map();
+function loadImageCached(name) {
+  const key = String(name).split('/').pop();
+  if (imageCache.has(key)) return imageCache.get(key);
+  const p = new Promise(resolve => {
+    const im = new Image();
+    im.decoding = 'async';
+    im.onload = async () => { try { if (im.decode) await im.decode(); } catch(e) {} resolve(im); };
+    im.onerror = () => { console.warn('Asset failed:', key); resolve(null); };
+    im.src = A + encodeURIComponent(key);
   });
-  imageCache.set(key,p);
+  imageCache.set(key, p);
   return p;
 }
-function preloadTrial(names){return Promise.all(names.map(loadImageCached))}
-const enc=n=>A+encodeURIComponent(n);
-const assetUrl=n=>enc(n);
-const picture=(n,c='')=>`<img class="${c}" src="${assetUrl(n)}" alt="${n}" loading="eager">`;
-function base(h){root.innerHTML=`<section class="screen">${h}</section>`}
-function k(fn){document.onkeydown=e=>fn(e)}
+
+const picture = (n, c = '') => `<img class="${c}" src="${A + encodeURIComponent(n)}" alt="${n}" loading="eager">`;
+function base(h) { root.innerHTML = `<section class="screen">${h}</section>`; }
+function k(fn) { document.onkeydown = e => fn(e); }
 
 function enterFullscreen() {
   const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-  } else if (elem.mozRequestFullScreen) {
-    elem.mozRequestFullScreen();
-  } else if (elem.webkitRequestFullscreen) {
-    elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) {
-    elem.msRequestFullscreen();
-  }
-}
-
-function autoSavePartial() {
-  if(!S.id) return;
-  localStorage.setItem('participant_' + S.id + '_partial', JSON.stringify(S));
+  if (elem.requestFullscreen) elem.requestFullscreen().catch(()=>{});
+  else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
 }
 
 // ==========================================
@@ -270,7 +252,6 @@ let weightsY = null;
 
 let smoothGazeX = null;
 let smoothGazeY = null;
-
 let goodStateStartTime = 0;
 let isAligned = false;
 
@@ -278,29 +259,29 @@ function solveLinearRegression(X, Y) {
   const N = X.length;
   const K = X[0].length;
   let XTX = Array.from({length: K}, () => new Array(K).fill(0));
-  for(let i=0; i<K; i++) {
-    for(let j=0; j<K; j++) {
-      for(let n=0; n<N; n++) {
+  for (let i = 0; i < K; i++) {
+    for (let j = 0; j < K; j++) {
+      for (let n = 0; n < N; n++) {
         XTX[i][j] += X[n][i] * X[n][j];
       }
     }
   }
-  for(let i=0; i<K; i++) XTX[i][i] += 1e-3;
+  for (let i = 0; i < K; i++) XTX[i][i] += 1e-3;
 
   let I = Array.from({length: K}, (_, i) => Array.from({length: K}, (_, j) => i === j ? 1 : 0));
   let M = XTX.map(row => [...row]);
 
-  for(let i=0; i<K; i++) {
+  for (let i = 0; i < K; i++) {
     let pivot = M[i][i];
-    if(Math.abs(pivot) < 1e-9) pivot = 1e-9;
-    for(let j=0; j<K; j++) {
+    if (Math.abs(pivot) < 1e-9) pivot = 1e-9;
+    for (let j = 0; j < K; j++) {
       M[i][j] /= pivot;
       I[i][j] /= pivot;
     }
-    for(let k=0; k<K; k++) {
-      if(k !== i) {
+    for (let k = 0; k < K; k++) {
+      if (k !== i) {
         let factor = M[k][i];
-        for(let j=0; j<K; j++) {
+        for (let j = 0; j < K; j++) {
           M[k][j] -= factor * M[i][j];
           I[k][j] -= factor * I[i][j];
         }
@@ -308,16 +289,16 @@ function solveLinearRegression(X, Y) {
     }
   }
   let invXT = Array.from({length: K}, () => new Array(N).fill(0));
-  for(let i=0; i<K; i++) {
-    for(let n=0; n<N; n++) {
-      for(let j=0; j<K; j++) {
+  for (let i = 0; i < K; i++) {
+    for (let n = 0; n < N; n++) {
+      for (let j = 0; j < K; j++) {
         invXT[i][n] += I[i][j] * X[n][j];
       }
     }
   }
   let W = new Array(K).fill(0);
-  for(let i=0; i<K; i++) {
-    for(let n=0; n<N; n++) {
+  for (let i = 0; i < K; i++) {
+    for (let n = 0; n < N; n++) {
       W[i] += invXT[i][n] * Y[n];
     }
   }
@@ -325,13 +306,12 @@ function solveLinearRegression(X, Y) {
 }
 
 function predictGaze() {
-  if(!weightsX || !weightsY || !currentFeatures) return null;
+  if (!weightsX || !weightsY || !currentFeatures) return null;
   let rawX = 0, rawY = 0;
-  for(let i=0; i<currentFeatures.length; i++) {
+  for (let i = 0; i < currentFeatures.length; i++) {
     rawX += currentFeatures[i] * weightsX[i];
     rawY += currentFeatures[i] * weightsY[i];
   }
-
   rawX = Math.max(0, Math.min(window.innerWidth, rawX));
   rawY = Math.max(0, Math.min(window.innerHeight, rawY));
 
@@ -342,12 +322,11 @@ function predictGaze() {
     smoothGazeX = smoothGazeX * 0.70 + rawX * 0.30;
     smoothGazeY = smoothGazeY * 0.70 + rawY * 0.30;
   }
-
   return { x: smoothGazeX, y: smoothGazeY };
 }
 
 function initFaceMeshSystem() {
-  if(faceMesh) return Promise.resolve(true);
+  if (faceMesh) return Promise.resolve(true);
 
   const video = document.getElementById('webcamVideo');
   const canvas = document.getElementById('meshCanvas');
@@ -371,7 +350,6 @@ function initFaceMeshSystem() {
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const lm = results.multiFaceLandmarks[0];
-      
       if (typeof drawConnectors === 'function' && typeof FACEMESH_TESSELATION !== 'undefined') {
         drawConnectors(ctx, lm, FACEMESH_TESSELATION, {color: '#00FFFF', lineWidth: 0.3});
       }
@@ -379,7 +357,6 @@ function initFaceMeshSystem() {
       const lIris = lm[468], rIris = lm[473];
       const lOut = lm[33], lIn = lm[133];
       const rOut = lm[263], rIn = lm[362];
-
       const lTop = lm[159], lBot = lm[145];
       const lEyeH = Math.hypot(lTop.x - lBot.x, lTop.y - lBot.y);
       const lEyeW = Math.hypot(lOut.x - lIn.x, lOut.y - lIn.y);
@@ -393,14 +370,12 @@ function initFaceMeshSystem() {
       const mLy = (lOut.y + lIn.y) / 2;
       const mRx = (rOut.x + rIn.x) / 2;
       const mRy = (rOut.y + rIn.y) / 2;
-
       const eyeDistance = Math.hypot(mRx - mLx, mRy - mLy) || 0.1;
 
       const dxL = (lIris.x - mLx) / eyeDistance;
       const dyL = (lIris.y - mLy) / eyeDistance;
       const dxR = (rIris.x - mRx) / eyeDistance;
       const dyR = (rIris.y - mRy) / eyeDistance;
-
       const noseBridge = lm[6];
 
       currentFeatures = [
@@ -414,16 +389,14 @@ function initFaceMeshSystem() {
 
       const nose = lm[1];
       const centered = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.20 && nose.y < 0.80;
-      const isForceShown = isFaceSetupScreen || (performance.now() < forceShowPopupUntil);
 
       if (centered) {
         isAligned = true;
         popup.classList.remove('bad');
         popup.classList.add('good');
         statusTxt.textContent = 'הפנים זוהו';
-
         if (!goodStateStartTime) goodStateStartTime = performance.now();
-        if (isForceShown) {
+        if (isFaceSetupScreen) {
           popup.classList.add('show');
         } else if (performance.now() - goodStateStartTime >= 200) {
           popup.classList.remove('show');
@@ -451,9 +424,7 @@ function initFaceMeshSystem() {
   });
 
   cameraUtils = new Camera(video, {
-    onFrame: async () => {
-      await faceMesh.send({image: video});
-    },
+    onFrame: async () => { await faceMesh.send({image: video}); },
     width: 320,
     height: 240
   });
@@ -465,421 +436,201 @@ function initFaceMeshSystem() {
 }
 
 // ==========================================
-// Flow & Screens
+// Screens & Onboarding
 // ==========================================
-async function preload(){
-  base(`<div class="panel"><h1>נא להמתין בזמן שכל חומרי הניסוי נטענים</h1><p>אנא המתן/י עד לסיום הטעינה. אין לסגור את החלון.</p><progress id="pr" max="${assets.length}" value="0"></progress><p id="pc">0%</p></div>`);
-  const progress=document.getElementById('pr');
-  const percent=document.getElementById('pc');
-  let completed=0;
-  await Promise.all(assets.map(async name=>{
+async function preload() {
+  base(`<div class="panel"><h1>מכינים את ניסוי הוולידציה</h1><p>אנא המתן/י בזמן שכל התמונות נטענות...</p><progress id="pr" max="${assets.length}" value="0" style="width:60%;height:22px;"></progress><p id="pc">0%</p></div>`);
+  const progress = document.getElementById('pr');
+  const percent = document.getElementById('pc');
+  let completed = 0;
+  await Promise.all(assets.map(async name => {
     await loadImageCached(name);
     completed++;
-    progress.value=completed;
-    percent.textContent=Math.round(completed/assets.length*100)+'%';
+    progress.value = completed;
+    percent.textContent = Math.round(completed / assets.length * 100) + '%';
   }));
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   screen1();
 }
 
-function screen1(){base(`<div class="panel"><h1>ברוכים הבאים למחקר</h1><p>נא הזן/י את מספר המשתתף/ת.</p><input id="pid" class="input" inputmode="numeric"><br><button class="btn" id="go">המשך</button><p id="err" class="status"></p></div>`);document.getElementById('go').addEventListener('click',()=>{const value=document.getElementById('pid').value.trim();if(!value){document.getElementById('err').textContent='נא להזין מספר';return}S.id=value;enterFullscreen(); screenDemographics()})}
-function screenDemographics(){base(`<div class="panel"><h2>פרטים אישיים</h2><p>נא להזין/י את גילך ולבחור מגדר.</p><label for="age">גיל</label><br><input id="age" class="input" type="text" inputmode="numeric" autocomplete="off"><br><label for="gender">מגדר</label><br><select id="gender" class="input"><option value="">יש לבחור</option><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select><br><button class="btn" id="demoGo">המשך</button><p id="demoErr" class="status"></p></div>`);document.getElementById('demoGo').addEventListener('click',()=>{const age=document.getElementById('age').value.trim();const gender=document.getElementById('gender').value;if(!age){document.getElementById('demoErr').textContent='נא להזין גיל';return}if(!gender){document.getElementById('demoErr').textContent='נא לבחור מגדר';return}S.age=age;S.gender=gender;screen2()})}
-
-function screen2(){
+function screen1() {
   base(`
-    <div class="panel consent-choice" style="max-width: 850px; text-align: right; direction: rtl;">
-      <h2 style="text-align: center; color: #002060;">לניסוי זה שלוש דרישות:</h2>
-      <ol style="font-size: 22px; line-height: 1.6; margin: 20px 0; padding-right: 25px;">
-        <li style="margin-bottom: 12px;">יש לבצע את הניסוי עם לפטופ בעל מצלמה מובנית בלבד (לא מחשב שולחני עם חיבור מצלמת רשת).</li>
-        <li style="margin-bottom: 12px;">יש איסור לחבר מסך חיצוני ללפטופ בזמן ביצוע הניסוי.</li>
-        <li style="margin-bottom: 12px;">ניתן לבצע ניסוי זה בתנאי שאינך מרכיב/ה משקפיי ראייה מקרוב.</li>
+    <div class="panel">
+      <h1>בדיקת תיקוף למעקב תנועות עיניים</h1>
+      <p style="font-size:21px;">נא להזין מספר נבדק/ת ופרטים בסיסיים:</p>
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <input id="pid" class="input" placeholder="מספר משתתף/ת" inputmode="numeric">
+        <input id="age" class="input" placeholder="גיל" inputmode="numeric">
+        <select id="gender" class="input">
+          <option value="">בחירת מגדר</option>
+          <option value="זכר">זכר</option>
+          <option value="נקבה">נקבה</option>
+        </select>
+      </div>
+      <button class="btn" id="go">המשך</button>
+      <p id="err" class="status"></p>
+    </div>
+  `);
+  document.getElementById('go').onclick = () => {
+    const id = document.getElementById('pid').value.trim();
+    const age = document.getElementById('age').value.trim();
+    const gender = document.getElementById('gender').value;
+    if (!id || !age || !gender) {
+      document.getElementById('err').textContent = 'נא למלא את כל השדות';
+      return;
+    }
+    S.id = id;
+    S.age = age;
+    S.gender = gender;
+    enterFullscreen();
+    screenRequirements();
+  };
+}
+
+function screenRequirements() {
+  base(`
+    <div class="panel" style="max-width: 820px; text-align: right;">
+      <h2 style="text-align: center; color: #002060;">לפני שמתחילים – 3 תנאים הכרחיים:</h2>
+      <ol style="font-size: 22px; line-height: 1.7; margin: 20px 0;">
+        <li>ביצוע הניסוי בלפטופ עם מצלמה מובנית בלבד (ללא מסך חיצוני).</li>
+        <li>תאורה טובה על הפנים (ללא אור חזק מאחורי הגב).</li>
+        <li>ללא משקפי ראייה מקרוב שמסתירים או מחזירים השתקפות מהאישונים.</li>
       </ol>
-      <div style="margin-top: 25px; text-align: center; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-        <button class="btn" id="reqYes">אני עומד/ת בכל הדרישות</button>
-        <button class="btn no-btn" id="reqNo">אני לא עומד/ת בדרישות</button>
+      <div style="text-align: center;">
+        <button class="btn" id="reqOk">אני עומד/ת בתנאים – המשך</button>
       </div>
     </div>
   `);
-  document.getElementById('reqYes').addEventListener('click', consentScreen);
-  document.getElementById('reqNo').addEventListener('click', () => exit('תודה רבה על ההתעניינות במחקר שלנו. מכיוון שאינך עומד/ת בדרישות הניסוי, לא תוכל/י לבצע אותו. סליחה ויום טוב :)'));
+  document.getElementById('reqOk').onclick = screenInstructions;
 }
 
-function consentScreen(){base(`<div class="panel consent-form"><h2 style="color:#002060">טופס הסכמה מדעת להשתתפות בניסוי At First Glance</h2><p><strong>שם המחקר:</strong> At First Glance</p><p><strong>שם החוקר האחראי:</strong> אמבר מזרחי, המחלקה לקרימינולוגיה, אוניברסיטת בר-אילן.</p><p><strong>מטרת המחקר:</strong> מטרת המחקר הינה לבחון את זיהוי פריטים (זיכרון) בעת הצגת פריטים שונים על המסך, בהתאם להוראות שיוצגו בהמשך.</p><p><strong>מה תתבקש/י לעשות במחקר?</strong><br>בניסוי זה תבקש/י לבצע משימה מסוימת שבמהלכה ימדדו תנועות עינייך ביחידות של מספרים. נדגיש כי פנייך לא יוקלטו!</p><p><strong>כמה זמן ייקח המחקר?</strong> משך הניסוי הוא כ-15 דק'.</p><p><strong>מהם הסיכונים האפשריים הכרוכים בהשתתפות במחקר?</strong> אין סיכונים.</p><p><strong>איזו תועלת תצמח לך מהמחקר?</strong><br>תוכל/י לקבל חצי קופון. בנוסף, תוצאות הניסוי עשויות לתרום להבנה התאורטית של מבחן ה-CIT אשר מהווה תנאי חשוב ליישומו של מבחן זה.</p><p><strong>איך נשמור על המידע שנאגר במסגרת הניסוי?</strong><br>כדי להבטיח את שמירת החיסיון של המידע האישי שלך, כל נתוני המידע יקודדו ויישמרו במחשב באופן אנונימי ונפרד מהפרטים המזהים. בנוסף, לא יעשה שימוש מזהה כלשהו בנתונים שלך בפורום כלשהו או בפרסום מדעי או תקשורתי כלשהו.</p><p><strong>מה יקרה אם תרצה להפסיק את הניסוי באמצע?</strong><br>ההשתתפות בניסוי היא על בסיס התנדבותי. לפיכך – זכותך להפסיק את השתתפותך בניסוי בכל עת ומכל סיבה שהיא. לא תהינה שום השלכות לכך שבחרת להפסיק את הניסוי והחלטה זו לא תפגע בך בשום אופן. בנוסף, את הקרדיט היחסי עבור הניסוי תקבל גם במקרה שתחליט לפרוש.</p><p>במקרה הצורך ניתן ליצור קשר עם החוקרת האחראית – <strong>אמבר מזרחי</strong> – בכל שאלה ועניין בטלפון 050-3477040 ובאי-מייל imbar.mizrahi123@gmail.com.</p><p><strong>מידע ליצירת קשר לעזרה במקרה של פגיעה מהמחקר</strong><br>במידה ותרצה לשוחח על מחקר זה עם משהו שאינו מעורב ישירות במחקר, תוכל לדבר עם <strong>ד&quot;ר יהונתן לוי</strong> בכתובת המייל הבאה: jonathan.levy@biu.ac.il.</p><div class="consent-actions"><button class="btn" id="agree">אני מסכים/ה להשתתף בניסוי</button><button class="btn no-btn" id="decline">אני לא מסכים/ה להשתתף בניסוי</button></div></div>`);document.getElementById('agree').addEventListener('click',screen5);document.getElementById('decline').addEventListener('click',()=>exit('תודה רבה על ההתעניינות במחקר שלנו. יום טוב :)'))}
-
-function screen5(){
+function screenInstructions() {
   base(`
-    <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
-      <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">נשים</span> מפורסמות. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
-      <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
-      <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
-      <div style="text-align: center; margin-top: 35px;">
-        <button class="btn" onclick="screen6()">המשך</button>
-      </div>
-    </div>
-  `);
-}
-
-function screen7(){
-  base(`
-    <div class="panel" style="text-align: right; direction: rtl; max-width: 850px; font-size: 24px; line-height: 1.6; padding: 30px;">
-      <p style="margin-bottom: 15px;">במסך הבא יוצגו בפנייך תמונות של <span style="color: #8B0000; font-weight: bold;">גברים</span> מפורסמים. עלייך לעין בכלל התמונות!</p>
-      <p style="margin-bottom: 25px;">לבסוף יש לבחור <span style="border-bottom: 3px solid #8B0000; display: inline-block;">שתי תמונות</span> עם הפנים <span style="color: #8B0000; font-weight: bold;">שהכי</span> מוכרות עבורך.</p>
-      <p style="font-size: 20px; margin-bottom: 10px;">* כדי לבחור תמונה יש ללחוץ עליה.</p>
-      <p style="font-size: 20px;">** כדי לבטל את הבחירה, יש ללחוץ על אותה התמונה שוב.</p>
-      <div style="text-align: center; margin-top: 35px;">
-        <button class="btn" onclick="screen8()">המשך</button>
-      </div>
-    </div>
-  `);
-}
-
-function choose(g){
-  const ns=Array.from({length:12},(_,i)=>`${g}${i+1}.webp`);
-  base(`<h2>בחר/י בדיוק שני פרצופים מוכרים</h2><div class="grid">${ns.map((n,i)=>`<img class="candidate" id="c${i}" src="${enc(n)}">`).join('')}</div><button class="btn" id="b">המשך</button><p id="m" class="selection-error">נבחרו: 0 מתוך 2</p>`);
-  ns.forEach((_,i)=>document.getElementById('c'+i).onclick=()=>{
-    const x=document.getElementById('c'+i);
-    if(x.classList.contains('sel'))x.classList.remove('sel');
-    else if(document.querySelectorAll('.sel').length<2)x.classList.add('sel');
-    m.textContent='נבחרו: '+document.querySelectorAll('.sel').length+' מתוך 2'
-  });
-  b.onclick=()=>{
-    const a=[...document.querySelectorAll('.sel')].map(x=>decodeURIComponent(x.src.split('/').pop()));
-    if(a.length!==2){m.textContent='יש לבחור בדיוק שני פרצופים';return}
-    S[g==='F'?'female':'male']=a;
-    g==='F'?screen7():screenTaskInstructions()
-  }
-}
-function screen6(){choose('F')}
-function screen8(){choose('M')}
-
-function screenTaskInstructions(){
-  if(miniCalibTimer) clearTimeout(miniCalibTimer);
-  document.onkeydown = null;
-  base(`
-    <div class="panel" style="text-align: right; max-width: 900px; line-height: 1.5; padding: 20px 30px;">
-      <p style="font-size: 22px; margin-bottom: 12px; font-weight: bold; text-align: center;">
-        המשימה המרכזית של ניסוי זה היא משימת זיכרון די פשוטה.
+    <div class="panel" style="max-width: 960px; text-align: right; padding: 22px 32px;">
+      <h2 style="text-align: center; color: #002060; margin-bottom: 12px;">איך עובדת המשימה? (כ-3.5 דקות בלבד)</h2>
+      <p style="font-size: 20px; line-height: 1.5; margin-bottom: 10px;">
+        הניסוי כולל <strong>16 סבבים קצרים</strong>. בכל סבב יקרה הרצף הבא:
       </p>
-
-      <p style="font-size: 20px; margin-bottom: 12px;">
-        בניסוי יהיו שני סשנים: אחד שיכלול רק פרצופים של נשים ואחד שיכלול רק פרצופים של גברים (הסדר נקבע באופן אקראי). בין הסשנים תוכל/י לקחת כמה שניות לרענן את העיניים.
-      </p>
-
-      <p style="font-size: 20px; margin-bottom: 8px;">כל פעם יופיעו שתי תצוגות מרכזיות:</p>
-      <ul style="font-size: 19px; margin-right: 20px; margin-bottom: 12px; line-height: 1.5; list-style-type: disc;">
-        <li><strong>מסך עם ארבעה פרצופים שונים</strong> (צפייה חופשית, לא נדרשת שום תגובה).</li>
-        <li><strong>מסך עם פרצוף אחד</strong> בו יהיה עליך להגיב, מהר ככל הניתן, האם:
-          <br>&nbsp;&nbsp;~ הפרצוף אכן הופיע במסך הקודם = לחיצה על האות <span style="color: #006400; font-weight: bold;">"I" (= כן)</span>
-          <br>&nbsp;&nbsp;~ הפרצוף לא הופיע במסך הקודם = לחיצה על האות <span style="color: #8B0000; font-weight: bold;">"E" (= לא)</span>
+      <ol style="font-size: 19px; line-height: 1.55; margin-bottom: 12px;">
+        <li><strong>כיול קצר (6 נקודות):</strong> עקוב/י בעיניים בלבד אחר הנקודה הלבנה (מרכז ➔ 4 פינות ➔ מרכז) <strong>מבלי להזיז את הראש כלל</strong>.</li>
+        <li><strong>4 פרצופים + מסגרת ירוקה קופצת (5 שניות):</strong> מיד אחרי נקודת המרכז האחרונה יופיעו 4 פרצופים:
+          <br>• ב-<strong>0.5 השניות הראשונות</strong>: צפייה חופשית.
+          <br>• מיד לאחר מכן תידלק <strong>מסגרת ירוקה בולטת</strong> סביב אחד הפרצופים למשך <strong>2.25 שניות</strong> – יש להסתכל ישירות עליו!
+          <br>• מיד אחריה המסגרת הירוקה <strong>תקפוץ לפרצוף אחר</strong> למשך <strong>2.25 שניות</strong> נוספות – יש להעביר אליו את המבט מיד ולהתמקד בו!
         </li>
-      </ul>
+        <li><strong>סימן + למטה (1.5 שניות):</strong> מנוחה קצרה לעיניים לפני הסבב הבא (אין צורך ללחוץ על שום מקש!).</li>
+      </ol>
 
-      <p style="font-size: 19px; margin-bottom: 14px;">
-        בין המסכים יופיע הסימן <strong>+</strong> בתחתית המסך.
-      </p>
-
-      <p style="font-size: 20px; margin-bottom: 12px;">
-        * פעולה זו תחזור על עצמה כמה וכמה פעמים.
-      </p>
-
-      <p style="font-size: 19px; margin-bottom: 10px;">
-        בתחילת כל פעולה כזו יופיע מסך "כיול" שנועד לכוונן את תנועות העיניים - במסך זה יהיה עליך להסתכל על 6 נקודות שיתחלפו זו לאחר זו.
-      </p>
-
-      <p style="font-size: 19px; margin-bottom: 10px; color: #ffea00; font-weight: bold;">
-        *בשלב הכיול ובמסך של ארבעת הפרצופים שלאחריו – יש לשמור על ראש יציב וללא תנועות, <u style="text-decoration: underline;">זה עניין קריטי!</u>
-      </p>
-
-      <div style="text-align: center; margin-top: 10px;">
-        <h3 style="color: #000000; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
-        ${picture('NoHeadMovements.png', '')}
-      </div>
-
-      <div style="text-align: center; margin-top: 12px;">
-        <button class="btn" id="taskInstGo">המשך</button>
-      </div>
-    </div>
-  `);
-
-  const img = document.querySelector('.panel img');
-  if(img) {
-    img.style.maxWidth = '100%';
-    img.style.maxHeight = '20vh';
-    img.style.borderRadius = '8px';
-    img.style.objectFit = 'contain';
-  }
-
-  document.getElementById('taskInstGo').onclick = () => screenIllustration();
-}
-
-function screenIllustration(){
-  if(miniCalibTimer) clearTimeout(miniCalibTimer);
-  document.onkeydown=null;
-
-  base(`
-    <div class="illus-row">
-      <div class="illus-group">
-        <div class="illus-warning-header">⚠️ במסכים אלו אין להזיז את הראש כלל!!!</div>
-        
-        <div style="display: flex; gap: 14px; align-items: center; direction: ltr;">
-          <div class="mini-screen" id="miniCalibContainer"></div>
-
-          <div class="arrow-sep">➔</div>
-
-          <div class="mini-screen">
-            ${picture('P3.webp', 'pos')}
-            ${picture('P5.webp', 'pos')}
-            ${picture('P7.webp', 'pos')}
-            ${picture('P1.webp', 'pos')}
-          </div>
+      <div class="illus-row">
+        <div class="mini-screen">
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#002060;">1. צפייה חופשית (0.5s)</div>
+          <div class="mini-face" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
+        </div>
+        <div class="arrow-sep">➔</div>
+        <div class="mini-screen">
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">2. מסגרת ראשונה (2.25s)</div>
+          <div class="mini-face active" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
+        </div>
+        <div class="arrow-sep">➔</div>
+        <div class="mini-screen">
+          <div style="font-size:13px;font-weight:bold;padding:4px;background:#006400;">3. קפיצה למסגרת שנייה (2.25s)</div>
+          <div class="mini-face" style="left:6%;top:18%;">${picture('UNf1.webp')}</div>
+          <div class="mini-face" style="left:54%;top:18%;">${picture('UNf2.webp')}</div>
+          <div class="mini-face" style="left:6%;top:56%;">${picture('UNf3.webp')}</div>
+          <div class="mini-face active" style="left:54%;top:56%;">${picture('UNf4.webp')}</div>
         </div>
       </div>
 
-      <div class="arrow-sep">➔</div>
-
-      <div class="mini-screen">
-        <div style="position:absolute;left:0;right:0;bottom:6%;font-family:Arial,sans-serif;font-size:38px;color:#fff;text-align:center;">+</div>
+      <div style="text-align: center; margin-top: 14px;">
+        <button class="btn" id="instNext">הבנתי – הפעלת מצלמה</button>
       </div>
-
-      <div class="arrow-sep">➔</div>
-
-      <div class="mini-screen">
-        <div style="position:absolute;top:6%;left:4%;right:4%;font-size:14px;font-weight:bold;text-align:center;color:#fff;line-height:1.25;">האם הפרצוף הזה הופיע במסך הקודם?</div>
-        ${picture('P1.webp', 'center')}
-        <div style="position:absolute;bottom:6%;left:6%;font-size:16px;font-weight:bold;color:#8B0000;">E = לא</div>
-        <div style="position:absolute;bottom:6%;right:6%;font-size:16px;font-weight:bold;color:#006400;">I = כן</div>
-      </div>
-    </div>
-
-    <div style="margin-top: 18px; font-size: 20px; font-weight: bold; color: #fff; max-width: 900px; text-align: center; line-height: 1.4; background: rgba(0,0,0,0.3); padding: 12px 22px; border-radius: 10px; direction: rtl;">
-      לדוגמא, במצב כזה, כדי לספק את התשובה הנכונה עלייך ללחוץ על האות "I" (=כן), מה שמציין כי בראד פיט אכן הופיע במסך הקודם!
-    </div>
-
-    <div style="margin-top: 14px; display: flex; gap: 16px; justify-content: center; direction: rtl;">
-      <button class="btn no-btn" id="illusBack">חזרה להוראות</button>
-      <button class="btn" id="illusGo" disabled style="background:#777;color:#ddd;cursor:not-allowed;">המשך (5s)</button>
     </div>
   `);
+  document.getElementById('instNext').onclick = screenCameraInit;
+}
 
-  const miniPos = [
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[0], left: '5%', top: '8%', w: '40%', h: '40%' },
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[1], left: '55%', top: '8%', w: '40%', h: '40%' },
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[2], left: '5%', top: '52%', w: '40%', h: '40%' },
-    { el: document.querySelectorAll('.mini-screen')[1]?.children[3], left: '55%', top: '52%', w: '40%', h: '40%' }
-  ];
-  miniPos.forEach(p => {
-    if(p.el) {
-      p.el.style.position = 'absolute';
-      p.el.style.left = p.left;
-      p.el.style.top = p.top;
-      p.el.style.width = p.w;
-      p.el.style.height = p.h;
-      p.el.style.objectFit = 'contain';
-    }
+function screenCameraInit() {
+  base('<div class="panel"><h2>מפעילים את המצלמה...</h2><p>נא לאשר גישה למצלמה בדפדפן.</p></div>');
+  initFaceMeshSystem().then(() => {
+    screenFaceSetup();
+  }).catch(e => {
+    base(`<div class="panel"><h2>שגיאה בהפעלת המצלמה</h2><p>${e.message || 'יש לאשר גישה למצלמה'}</p></div>`);
   });
+}
 
-  const singleImg = document.querySelectorAll('.mini-screen')[3]?.querySelector('img');
-  if(singleImg) {
-    singleImg.style.position = 'absolute';
-    singleImg.style.left = '28%';
-    singleImg.style.top = '26%';
-    singleImg.style.width = '44%';
-    singleImg.style.height = '48%';
-    singleImg.style.objectFit = 'contain';
-  }
+function screenFaceSetup() {
+  isFaceSetupScreen = true;
+  document.getElementById('cameraPopup')?.classList.add('show');
+  base(`
+    <div class="panel" style="max-width:800px;">
+      <h2>מיקום הפנים מול המצלמה</h2>
+      <p style="font-size:22px;">מקם/י את פניך במרכז החלונית בצד שמאל למעלה.</p>
+      <p style="font-size:20px;color:#ffea00;font-weight:bold;">חשוב מאוד: מרגע שתלחץ/י על התחלה, יש לשמור על ראש יציב וללא תזוזות!</p>
+      <div style="margin:14px 0;">
+        ${picture('NoHeadMovements.png')}
+      </div>
+      <button class="btn" id="goCalBtn" disabled>התחל בניסוי (16 סבבים)</button>
+    </div>
+  `);
+  const img = document.querySelector('.panel img');
+  if (img) { img.style.maxHeight = '22vh'; img.style.borderRadius = '8px'; }
 
-  startMiniCalibAnimation();
+  document.getElementById('goCalBtn').onclick = () => {
+    enterFullscreen();
+    isFaceSetupScreen = false;
+    document.getElementById('cameraPopup')?.classList.remove('show');
+    countdown();
+  };
+}
 
-  const goBtn = document.getElementById('illusGo');
-  let secondsLeft = 5;
-  const interval = setInterval(() => {
-    secondsLeft--;
-    if (secondsLeft > 0) {
-      if (goBtn) goBtn.textContent = `המשך (${secondsLeft}s)`;
+function countdown() {
+  let n = 3;
+  base(`<div id="ct" class="count">3</div>`);
+  const t = setInterval(() => {
+    n--;
+    if (n < 1) {
+      clearInterval(t);
+      runValidationExperiment();
     } else {
-      clearInterval(interval);
-      if (goBtn) {
-        goBtn.disabled = false;
-        goBtn.style.background = '#4f8f52';
-        goBtn.style.color = '#fff';
-        goBtn.style.cursor = 'pointer';
-        goBtn.textContent = 'המשך';
-      }
+      document.getElementById('ct').textContent = n;
     }
   }, 1000);
-
-  document.getElementById('illusBack').onclick = () => {
-    clearInterval(interval);
-    if(miniCalibTimer) clearTimeout(miniCalibTimer);
-    screenTaskInstructions();
-  };
-
-  goBtn.onclick = () => {
-    clearInterval(interval);
-    if(miniCalibTimer) clearTimeout(miniCalibTimer);
-    screenIncentive();
-  };
 }
-
-function screenIncentive(){
-  if(miniCalibTimer) clearTimeout(miniCalibTimer);
-  base(`
-    <div class="panel consent-choice" style="max-width: 850px; text-align: center; padding: 30px; direction: rtl; font-size: 24px; line-height: 1.6;">
-      <p style="margin-bottom: 20px;">
-        משימה זו מודדת יכולת קוגניטיבית חשובה: היכולת לזהות ולזכור פרצופים. רוב המשתתפים מגיעים לדיוק של כ-80%. נסו לבצע זאת בצורה מדויקת אפילו יותר.
-      </p>
-      <p style="margin-bottom: 30px; font-weight: bold; color: #ffea00;">
-        אם תצליחו לבצע את המשימה בדיוק גבוה יותר, תיכנסו להגרלה על כרטיס BuyMe בשווי 150 ₪ 😊
-      </p>
-      <button class="btn" id="incGoBtn">המשך</button>
-    </div>
-  `);
-  document.getElementById('incGoBtn').onclick = () => screenPracticeInstructions();
-}
-
-function screenPracticeInstructions(){
-  if(miniCalibTimer) clearTimeout(miniCalibTimer);
-  
-  base(`
-    <div class="panel consent-choice" style="max-width: 900px; text-align: center;">
-      <div style="font-size: 26px; line-height: 1.6; margin-bottom: 20px;">
-        <p style="margin-bottom: 10px;">כעת תבצע/י שלב אימון קצר על מנת לתרגל את המשימה.</p>
-        <p style="margin-bottom: 10px;">בשלב זה תקבל/י משוב מידי ("תשובה נכונה" / "תשובה שגויה" / "לאט מדי") לאחר כל תגובה.</p>
-        <p>במידה ותכשל/י באימון, תידרש/י לבצע אותו שוב.</p>
-      </div>
-      <div style="margin-top: 15px;">
-        <button class="btn no-btn" id="pracBackBtn">חזרה אחורה</button>
-      </div>
-      <p style="color: #002060; font-size: 26px; font-weight: bold; margin-top: 15px;">
-        כדי להתחיל את האימון יש ללחוץ על מקש "רווח"
-      </p>
-    </div>
-  `);
-
-  document.getElementById('pracBackBtn').onclick = () => {
-    document.onkeydown = null;
-    screenIncentive();
-  };
-
-  k(e => {
-    if(e.code === 'Space' || e.key === ' ') {
-      document.onkeydown = null;
-      countdown('practice');
-    }
-  });
-}
-
-function startMiniCalibAnimation() {
-  const container = document.getElementById('miniCalibContainer');
-  if(!container) return;
-
-  const pts = [
-    { x: 50, y: 50 },
-    { x: 15, y: 15 },
-    { x: 85, y: 15 },
-    { x: 85, y: 85 },
-    { x: 15, y: 85 },
-    { x: 50, y: 50 }
-  ];
-
-  let stepIdx = 0;
-
-  function playStep() {
-    if(!document.getElementById('miniCalibContainer')) return;
-
-    const curr = pts[stepIdx];
-    const next = pts[(stepIdx + 1) % pts.length];
-
-    container.innerHTML = `
-      <div style="position:absolute;left:${curr.x}%;top:${curr.y}%;transform:translate(-50%,-50%);width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
-        <div style="width:7px;height:7px;background:#ffffff;border:1px solid #002060;border-radius:50%;position:absolute;z-index:2;box-shadow:0 0 6px #ffffff;"></div>
-        <div class="mini-shrink-ring"></div>
-      </div>
-    `;
-
-    miniCalibTimer = setTimeout(() => {
-      let progress = 0;
-
-      function drawLineStep() {
-        if(!document.getElementById('miniCalibContainer')) return;
-
-        progress += 0.10;
-        if(progress > 1) progress = 1;
-
-        const curX = curr.x + (next.x - curr.x) * progress;
-        const curY = curr.y + (next.y - curr.y) * progress;
-
-        container.innerHTML = `
-          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
-            <line x1="${curr.x}%" y1="${curr.y}%" x2="${curX}%" y2="${curY}%" stroke="#ffffff" stroke-dasharray="3 3" stroke-width="2" opacity="0.95" />
-          </svg>
-          <div style="position:absolute;left:${curX}%;top:${curY}%;transform:translate(-50%,-50%);width:6px;height:6px;background:#ffffff;border:1px solid #002060;border-radius:50%;box-shadow:0 0 4px #ffffff;"></div>
-        `;
-
-        if(progress < 1) {
-          miniCalibTimer = setTimeout(drawLineStep, 35);
-        } else {
-          stepIdx = (stepIdx + 1) % pts.length;
-          miniCalibTimer = setTimeout(playStep, 100);
-        }
-      }
-
-      drawLineStep();
-    }, 650);
-  }
-
-  playStep();
-}
-
-function countdown(type){let n=3;base(`<div id="ct" class="count">3</div>`);const t=setInterval(()=>{n--;if(n<1){clearInterval(t);type==='practice'?practice():mainStart(type==='block2'?2:1)}else ct.textContent=n},1000)}
-
-let showFeedback=false;
-const prac=[['P4','P6','P2','P8','P2','i'],['P1','P3','P5','P7','P9','e'],['P6','P8','P4','P10','P8','i'],['P3','P9','P7','P5','P1','e']];
 
 // ==========================================
-// Calibration & Visual Transitions (400ms)
+// 6-Point Calibration Engine
 // ==========================================
 function runTransition(fromPt, toPt, duration, onComplete) {
   const startTime = performance.now();
-  
   base(`
     <div class="calib-stage">
       <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
-        <line x1="${fromPt.x}%" y1="${fromPt.y}%" x2="${toPt.x}%" y2="${toPt.y}%" 
+        <line x1="${fromPt.x}%" y1="${fromPt.y}%" x2="${toPt.x}%" y2="${toPt.y}%"
               stroke="#ffffff" stroke-dasharray="6 6" stroke-width="3" opacity="0.7" />
       </svg>
       <div id="transDot" style="position:absolute;width:20px;height:20px;background:#ffffff;border:2px solid #002060;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ffffff;left:${fromPt.x}%;top:${fromPt.y}%;"></div>
     </div>
   `);
-
   const dot = document.getElementById('transDot');
-
   function step(now) {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-
-    const curX = fromPt.x + (toPt.x - fromPt.x) * progress;
-    const curY = fromPt.y + (toPt.y - fromPt.y) * progress;
-
+    const progress = Math.min((now - startTime) / duration, 1);
     if (dot) {
-      dot.style.left = curX + '%';
-      dot.style.top = curY + '%';
+      dot.style.left = (fromPt.x + (toPt.x - fromPt.x) * progress) + '%';
+      dot.style.top = (fromPt.y + (toPt.y - fromPt.y) * progress) + '%';
     }
-
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    } else {
-      onComplete();
-    }
+    if (progress < 1) requestAnimationFrame(step);
+    else onComplete();
   }
-
   requestAnimationFrame(step);
 }
 
-function run6PointCalibration(onComplete, isSimulation = false) {
+function run6PointCalibration(onComplete) {
   document.getElementById('cameraPopup')?.classList.remove('show');
-
   const points = [
     { x: 50, y: 50 },
     { x: 10, y: 10 },
@@ -889,50 +640,44 @@ function run6PointCalibration(onComplete, isSimulation = false) {
     { x: 50, y: 50 }
   ];
 
-  if (!isSimulation) {
-    calibDataX = [];
-    calibDataY = [];
-    totalCalibSamples = 0;
-    smoothGazeX = null;
-    smoothGazeY = null;
-  }
+  calibDataX = [];
+  calibDataY = [];
+  totalCalibSamples = 0;
+  smoothGazeX = null;
+  smoothGazeY = null;
 
   let index = 0;
 
   function runNextPoint() {
     if (index >= points.length) {
-      if (!isSimulation) {
-        const validSamples = calibDataX.length;
-        
-        const minRequiredValid = 35;
-        const isValid = validSamples >= minRequiredValid && (totalCalibSamples === 0 || (validSamples / totalCalibSamples) >= 0.5);
+      const validSamples = calibDataX.length;
+      const minRequiredValid = 35;
+      const isValid = validSamples >= minRequiredValid && (totalCalibSamples === 0 || (validSamples / totalCalibSamples) >= 0.5);
 
-        if (!isValid) {
-          base(`
-            <div class="panel" style="text-align: center;">
-              <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
-              <p style="font-size: 22px; margin: 20px 0;">הפנים יצאו מהמסגרת, העיניים היו עצומות או שלא הבטת בנקודות הכיול בצורה רציפה.</p>
-              <p style="font-size: 20px;">נא להקפיד להתייצב מול המצלמה ולהביט על כל נקודה בעיניים פקוחות וללא תנועות ראש.</p>
-              <p style="color: #002060; font-size: 24px; font-weight: bold; margin-top: 20px;">כדי לנסות שוב לחץ/י על מקש "רווח"</p>
-            </div>
-          `);
-          k(e => {
-            if (e.code === 'Space' || e.key === ' ') {
-              e.preventDefault();
-              document.onkeydown = null;
-              currentTrialCalibAttempts++;
-              run6PointCalibration(onComplete, isSimulation);
-            }
-          });
-          return;
-        }
-
-        const X = calibDataX.map(d => d.feat);
-        const Yx = calibDataX.map(d => d.target);
-        const Yy = calibDataY.map(d => d.target);
-        weightsX = solveLinearRegression(X, Yx);
-        weightsY = solveLinearRegression(X, Yy);
+      if (!isValid) {
+        base(`
+          <div class="panel" style="text-align: center;">
+            <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
+            <p style="font-size: 22px; margin: 20px 0;">הפנים יצאו מהמסגרת או שהעיניים נעצמו במהלך הכיול.</p>
+            <p style="color: #002060; font-size: 24px; font-weight: bold;">כדי לנסות שוב לחץ/י על מקש "רווח"</p>
+          </div>
+        `);
+        k(e => {
+          if (e.code === 'Space' || e.key === ' ') {
+            e.preventDefault();
+            document.onkeydown = null;
+            currentTrialCalibAttempts++;
+            run6PointCalibration(onComplete);
+          }
+        });
+        return;
       }
+
+      const X = calibDataX.map(d => d.feat);
+      const Yx = calibDataX.map(d => d.target);
+      const Yy = calibDataY.map(d => d.target);
+      weightsX = solveLinearRegression(X, Yx);
+      weightsY = solveLinearRegression(X, Yy);
       onComplete();
       return;
     }
@@ -957,452 +702,186 @@ function run6PointCalibration(onComplete, isSimulation = false) {
 
       function sampleLoop(now) {
         const elapsed = now - startTimePoint;
-
-        if (!isSimulation && elapsed >= ignoreInitialMs && elapsed < duration) {
+        if (elapsed >= ignoreInitialMs && elapsed < duration) {
           if (now - lastSampleTime >= 30) {
             lastSampleTime = now;
             totalCalibSamples++;
-
-            const faceCentered = typeof isAligned !== 'undefined' ? isAligned : true;
-            if (currentFeatures && faceCentered) {
+            if (currentFeatures && isAligned) {
               calibDataX.push({ feat: [...currentFeatures], target: targetX });
               calibDataY.push({ feat: [...currentFeatures], target: targetY });
             }
           }
         }
-
-        if (elapsed < duration) {
-          requestAnimationFrame(sampleLoop);
-        } else {
-          index++;
-          runNextPoint();
-        }
+        if (elapsed < duration) requestAnimationFrame(sampleLoop);
+        else { index++; runNextPoint(); }
       }
-
       requestAnimationFrame(sampleLoop);
     };
 
-    if (index > 0) {
-      runTransition(points[index - 1], points[index], 400, startPointLogic);
-    } else {
-      startPointLogic();
-    }
+    if (index > 0) runTransition(points[index - 1], points[index], 400, startPointLogic);
+    else startPointLogic();
   }
 
   runNextPoint();
 }
 
-function trial(row, done, isPractice = false){
-  currentTrialCalibAttempts = 1;
-  const faces = row.slice(0, 4).map(x => String(x).endsWith('.webp') ? String(x) : String(x) + '.webp');
-
-  run6PointCalibration(() => {
-    base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x, i) => picture(x, 'pos p' + (i + 1))).join('')}</div>`);
-    
-    const imgElements = Array.from(document.querySelectorAll('.trial-grid img'));
-    Promise.all(imgElements.map(img => img.decode ? img.decode().catch(()=>{}) : Promise.resolve())).then(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const grid = document.querySelector('.trial-grid');
-          if (!grid) return;
-
-          grid.style.visibility = 'visible';
-
-          setTimeout(() => {
-            base('<div class="bottom-fix">+</div>');
-            setTimeout(() => response(row, done, true), 3000);
-          }, 5000);
-        });
-      });
-    });
-  }, isPractice);
-}
-
-function response(row, done, isPractice = false, trialMeta = null){
-  const singleName = String(row[4]).endsWith('.webp') ? String(row[4]) : String(row[4]) + '.webp';
-  
-  base(`
-    <div id="singleFaceWrapper" style="visibility:hidden; position:absolute; inset:0;">
-      ${picture(singleName, 'center')}
-      <div class="question">האם הפרצוף הזה הופיע במסך הקודם?</div>
-      <div class="keys"><span class="yes">I = כן</span><span class="no">E = לא</span></div>
-    </div>
-  `);
-
-  const imgElem = document.querySelector('#singleFaceWrapper img');
-  const decodePromise = (imgElem && imgElem.decode) ? imgElem.decode().catch(()=>{}) : Promise.resolve();
-
-  decodePromise.then(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const wrapper = document.getElementById('singleFaceWrapper');
-        if (!wrapper) return;
-        wrapper.style.visibility = 'visible';
-
-        const t = performance.now();
-        let answered = false;
-        let timeoutId = null;
-        document.onkeydown = null;
-
-        document.onkeydown = e => {
-          const key = String(e.key || '').toLowerCase();
-          const q = e.code === 'KeyI' || key === 'i' || key === 'ך' ? 'i' : e.code === 'KeyE' || key === 'e' || key === 'ק' ? 'e' : '';
-          if (!q || answered) return;
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          answered = true;
-          clearTimeout(timeoutId);
-          document.onkeydown = null;
-
-          const isCorrect = q === row[row.length - 1];
-          if (showFeedback && !isCorrect) {
-            practiceErrors++;
-          }
-
-          if (!showFeedback && trialMeta) {
-            S.trials.push({
-              phase: 'main',
-              block: trialMeta.block,
-              trial: trialMeta.trial,
-              ffi: trialMeta.ffi,
-              ffl: trialMeta.ffl,
-              singleStimulus: trialMeta.singleStimulus,
-              isFamiliarStimulus: trialMeta.isFamiliarStimulus,
-              expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
-              correctKey: trialMeta.correctKey,
-              key: q,
-              correct: isCorrect,
-              timeout: false,
-              rt: performance.now() - t,
-              calibAttempts: trialMeta.calibAttempts || 1,
-              excluded: (trialMeta.calibAttempts || 1) > 3
-            });
-            autoSavePartial();
-          }
-
-          const finishAnswer = () => { if (typeof done === 'function') done(); };
-          if (showFeedback) {
-            base(`<h2 style="color:${isCorrect ? '#00a83b' : '#b32626'}">${isCorrect ? 'תשובה נכונה' : 'תשובה שגויה'}</h2>`);
-            setTimeout(finishAnswer, 700);
-          } else {
-            finishAnswer();
-          }
-        };
-
-        timeoutId = setTimeout(() => {
-          if (answered) return;
-          answered = true;
-          document.onkeydown = null;
-
-          if (showFeedback) {
-            practiceErrors++;
-          }
-
-          if (!showFeedback && trialMeta) {
-            S.trials.push({
-              phase: 'main',
-              block: trialMeta.block,
-              trial: trialMeta.trial,
-              ffi: trialMeta.ffi,
-              ffl: trialMeta.ffl,
-              singleStimulus: trialMeta.singleStimulus,
-              isFamiliarStimulus: trialMeta.isFamiliarStimulus,
-              expectedAnswer: trialMeta.correctKey === 'i' ? 'yes' : 'no',
-              correctKey: trialMeta.correctKey,
-              key: null,
-              correct: false,
-              timeout: true,
-              rt: null,
-              calibAttempts: trialMeta.calibAttempts || 1,
-              excluded: (trialMeta.calibAttempts || 1) > 3
-            });
-            autoSavePartial();
-          }
-
-          if (showFeedback) {
-            base('<h2 style="color:#9b3f3f">לאט מידי</h2>');
-            setTimeout(() => { if (typeof done === 'function') done(); }, 700);
-          } else if (typeof done === 'function') done();
-        }, 2000);
-
-        window.focus();
-      });
-    });
-  });
-}
-
-function practice(){
-  showFeedback=true;
-  practiceErrors=0;
-  S.practiceRunCount = (S.practiceRunCount || 0) + 1;
-  document.body.style.cursor = 'none';
-  let i=0,finished=false;
-  const go=()=>{
-    if(finished)return;
-    if(i<prac.length){
-      trial(prac[i++],go, true);
-    }else{
-      finished=true;
-      showFeedback=false;
-      document.onkeydown=null;
-      document.body.style.cursor = 'default';
-
-      if(practiceErrors >= 2){
-        base(`
-          <div class="panel">
-            <h2 style="color:#b32626">שלב האימון לא עבר בהצלחה</h2>
-            <p style="font-size: 22px; margin: 20px 0;">ביצעת ${practiceErrors} שגיאות בשלב האימון. יש לבצע את האימון שוב לפני המעבר לניסוי.</p>
-            <button class="btn" id="retryPrac">התחל אימון מחדש</button>
-          </div>
-        `);
-        document.getElementById('retryPrac').onclick = () => countdown('practice');
-      } else {
-        setTimeout(screenMovementInstructions,400);
-      }
-    }
-  };
-  go()
-}
-
-function screenMovementInstructions(){
-  base(`
-    <div class="panel" style="text-align: center; max-width: 850px; direction: rtl; font-size: 24px; line-height: 1.6; padding: 30px;">
-      <p style="margin-bottom: 20px;">
-        במסכים הבאים ימדדו תנועות עינייך. <span style="border-bottom: 3px solid #8B0000; display: inline-block;">לשם כך עלייך להימנע ככל הניתן מתזוזות מיותרות!</span>
-      </p>
-      <div style="margin: 20px 0;">
-		<h3 style="color: #ffea00; margin: 0 0 6px 0; font-size: 22px;">חשוב מאוד:</h3>
-        ${picture('NoHeadMovements.png', '')}
-      </div>
-      <button class="btn" id="movementContinue">המשך</button>
-    </div>
-  `);
-  const img = document.querySelector('.panel img');
-  if(img) {
-    img.style.maxWidth = '100%';
-    img.style.maxHeight = '25vh';
-    img.style.borderRadius = '8px';
-    img.style.objectFit = 'contain';
-  }
-  document.getElementById('movementContinue').addEventListener('click',()=>screen12(1));
-}
-
-function screen12(block=1){
-  base('<div class="panel"><h2>מכינים את המצלמה למעקב עיניים</h2><p>נא לאשר גישה למצלמה ולהישאר מול המסך.</p><p id="wgStatus">מפעילים את מודל הפנים...</p></div>');
-  initFaceMeshSystem().then(()=>{
-    document.getElementById('wgStatus')?.remove();
-    screenFaceSetup(block);
-  }).catch(e=>{
-    base(`<div class="panel"><h2>לא ניתן להפעיל את המצלמה</h2><p>יש לאפשר גישה למצלמה בדפדפן.</p><p class="status">${e.message||''}</p></div>`);
-  });
-}
-
-function screenSessionBreak() {
-  if (miniCalibTimer) clearTimeout(miniCalibTimer);
-  document.onkeydown = null;
-
-  base(`
-    <div class="panel consent-choice" style="max-width: 850px; text-align: center; padding: 30px;">
-      <h2 style="color: #002060; font-size: 32px; margin-bottom: 20px;">הפסקה - סיימת את חלק 1 מתוך 2</h2>
-      <div style="font-size: 24px; line-height: 1.6; margin-bottom: 25px; text-align: right; direction: rtl;">
-        <p>כל הכבוד! השלמת בהצלחה את החלק הראשון של הניסוי.</p>
-        <p>כעת זהו זמן מצוין לקחת כמה שניות למנוחה, לרענן את העיניים.</p>
-        <p style="color: #ffea00; font-weight: bold; margin-top: 15px;">כשתהיה/י מוכן/ה להמשיך לחלק השני והאחרון, יש ללחוץ על מקש הרווח (Space).</p>
-      </div>
-      <button class="btn" id="breakContinueBtn">המשך לחלק 2 (ספייס)</button>
-    </div>
-  `);
-
-  const proceed = () => {
-    document.onkeydown = null;
-    screenFaceSetup(2);
-  };
-
-  document.getElementById('breakContinueBtn').onclick = proceed;
-
-  k(e => {
-    if (e.code === 'Space' || e.key === ' ') {
-      e.preventDefault();
-      proceed();
-    }
-  });
-}
-
-function screenFaceSetup(block){
-  isFaceSetupScreen = true;
-  const popup = document.getElementById('cameraPopup');
-  if (popup) popup.classList.add('show');
-
-  base(`
-    <div class="panel">
-      <h2>אימות מיקום הפנים - חלק ${block}</h2>
-      <p>יש להתייצב מול המצלמה כך שהפנים יהיו במרכז המסגרת בצד שמאל.</p>
-      <p>כאשר המסגרת הופכת לירוקה, לחץ/י על "המשך".</p>
-      <button class="btn" id="goCalBtn" disabled>המשך</button>
-    </div>
-  `);
-  document.getElementById('goCalBtn').onclick = () => {
-    if (!document.fullscreenElement) {
-      enterFullscreen();
-    }
-    isFaceSetupScreen = false;
-    document.getElementById('cameraPopup')?.classList.remove('show');
-    if (block === 1) {
-      screenPreRealTask();
-    } else {
-      screen13(block);
-    }
-  }
-}
-
-function screenPreRealTask(){
-  base(`
-    <div class="panel" style="text-align: center; max-width: 800px; padding: 40px; direction: rtl;">
-      <div style="border: 3px solid #002060; border-radius: 12px; padding: 30px; background: rgba(0,32,96,0.2); margin-bottom: 30px;">
-        <h2 style="font-size: 32px; color: #fff; margin: 0;">בעוד רגע תתחיל המשימה האמיתית :)</h2>
-      </div>
-      <button class="btn" id="btnStartRealTask" style="font-size: 24px; padding: 14px 32px; background-color: #4f8f52;">אני מוכן/נה, אפשר להתחיל</button>
-    </div>
-  `);
-
-  document.getElementById('btnStartRealTask').onclick = () => {
-    screen13(1);
-  };
-}
-
-function screen13(block){
-  base(`
-    <div class="panel">
-      <h2>הוראות למשימת מעקב העיניים - חלק ${block}</h2>
-      <p style="font-size:22px; line-height:1.6; text-align:right;">
-        • לפני כל הצגה של 4 פרצופים, תופיע סדרה קצרה של <strong>6 נקודות כיול</strong> (מרכז, פינות, ובחזרה למרכז).<br>
-        • בין נקודה לנקודה יופיע קו מנחה לעין – יש לעקוב אחר תנועתו.<br>
-        • <strong>הנקודה השישית והאחרונה ממוקמת במרכז המסך.</strong> מיד בסיומה יופיעו 4 הפרצופים. בשלב זה עליכם לשנן טוב טוב את כל הפרצופים המופיעים על המסך.<br>
-        • לאחר מכן יהיה מסך בו יופיע פרצוף אחד ועליך יהיה להשיב האם הפרצוף הופיע במסך הקודם או שלא.
-      </p>
-      <p style="color: #002060; font-size:20px; margin-top:30px;">ברגע שתרגיש/י מוכן/נה יש ללחוץ על מקש <strong>"רווח"</strong> כדי להתחיל.</p>
-    </div>
-  `);
-  k(e=>{if(e.code==='Space')countdown(block===1?'main':'block2')});
-}
-
-async function mainStart(block){
-  showFeedback=false;
-  document.body.style.cursor = 'none';
-  
-  const sex=block===1?(Math.random()<.5?'F':'M'):(S.lastSex==='F'?'M':'F');
-  S.lastSex=sex;
-  const familiar=(sex==='F'?S.female:S.male).map(x=>String(x).split('/').pop());
-  const f1=familiar[0]||`${sex}1.webp`,f2=familiar[1]||`${sex}2.webp`;
-  
-  const rawRows=sex==='F'?[
-    {ffi:1, ffl:1, p:[f1,'UNf13.webp','UNf10.webp','UNf5.webp'], s:'UNf6.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNf2.webp',f1,'UNf14.webp','UNf1.webp'], s:f1, c:'i'},
-    {ffi:1, ffl:3, p:['UNf6.webp','UNf12.webp',f1,'UNf9.webp'], s:'UNf5.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNf7.webp','UNf8.webp','UNf3.webp',f1], s:'UNf3.webp', c:'i'},
-    {ffi:1, ffl:1, p:[f2,'UNf10.webp','UNf9.webp','UNf7.webp'], s:'UNf4.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNf8.webp',f2,'UNf4.webp','UNf12.webp'], s:f2, c:'i'},
-    {ffi:1, ffl:3, p:['UNf3.webp','UNf6.webp',f2,'UNf13.webp'], s:'UNf2.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNf11.webp','UNf2.webp','UNf1.webp',f2], s:'UNf1.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'], s:'UNf3.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'], s:'UNf6.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'], s:'UNf1.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'], s:'UNf5.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'], s:f1, c:'e'},
-    {ffi:0, ffl:0, p:['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'], s:'UNf4.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'], s:f2, c:'e'},
-    {ffi:0, ffl:0, p:['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp'], s:'UNf2.webp', c:'i'}
-  ]:[
-    {ffi:1, ffl:1, p:[f1,'UNm13.webp','UNm10.webp','UNm5.webp'], s:'UNm6.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNm2.webp',f1,'UNm14.webp','UNm1.webp'], s:f1, c:'i'},
-    {ffi:1, ffl:3, p:['UNm6.webp','UNm12.webp',f1,'UNm9.webp'], s:'UNm5.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNm7.webp','UNm8.webp','UNm3.webp',f1], s:'UNm3.webp', c:'i'},
-    {ffi:1, ffl:1, p:[f2,'UNm10.webp','UNm9.webp','UNm7.webp'], s:'UNm4.webp', c:'e'},
-    {ffi:1, ffl:2, p:['UNm8.webp',f2,'UNm4.webp','UNm12.webp'], s:f2, c:'i'},
-    {ffi:1, ffl:3, p:['UNm3.webp','UNm6.webp',f2,'UNm13.webp'], s:'UNm2.webp', c:'e'},
-    {ffi:1, ffl:4, p:['UNm11.webp','UNm2.webp','UNm1.webp',f2], s:'UNm1.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'], s:'UNm3.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'], s:'UNm6.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'], s:'UNm1.webp', c:'e'},
-    {ffi:0, ffl:0, p:['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'], s:'UNm5.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'], s:f1, c:'e'},
-    {ffi:0, ffl:0, p:['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'], s:'UNm4.webp', c:'i'},
-    {ffi:0, ffl:0, p:['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'], s:f2, c:'e'},
-    {ffi:0, ffl:0, p:['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp'], s:'UNm2.webp', c:'i'}
+// ==========================================
+// 16 Unfamiliar Trials: Explicit Dot-Probe / Validation Grid
+// Timeline per trial (5000ms total):
+//   0 -  500ms : Baseline (4 unfamiliar faces, no highlight)
+// 500 - 2750ms : Target 1 highlighted (2250ms)
+//2750 - 5000ms : Target 2 highlighted (2250ms, different quadrant)
+// ==========================================
+function generate16ValidationTrials() {
+  // 8 Female unfamiliar arrays + 8 Male unfamiliar arrays (exact unfamiliar pools)
+  const femaleSets = [
+    ['UNf5.webp','UNf9.webp','UNf2.webp','UNf4.webp'],
+    ['UNf10.webp','UNf3.webp','UNf6.webp','UNf8.webp'],
+    ['UNf14.webp','UNf4.webp','UNf7.webp','UNf10.webp'],
+    ['UNf13.webp','UNf1.webp','UNf5.webp','UNf11.webp'],
+    ['UNf12.webp','UNf7.webp','UNf8.webp','UNf14.webp'],
+    ['UNf4.webp','UNf5.webp','UNf11.webp','UNf6.webp'],
+    ['UNf9.webp','UNf11.webp','UNf12.webp','UNf3.webp'],
+    ['UNf1.webp','UNf14.webp','UNf13.webp','UNf2.webp']
   ];
 
-  const rows = [...rawRows].sort(()=>Math.random()-.5);
+  const maleSets = [
+    ['UNm5.webp','UNm9.webp','UNm2.webp','UNm4.webp'],
+    ['UNm10.webp','UNm3.webp','UNm6.webp','UNm8.webp'],
+    ['UNm14.webp','UNm4.webp','UNm7.webp','UNm10.webp'],
+    ['UNm13.webp','UNm1.webp','UNm5.webp','UNm11.webp'],
+    ['UNm12.webp','UNm7.webp','UNm8.webp','UNm14.webp'],
+    ['UNm4.webp','UNm5.webp','UNm11.webp','UNm6.webp'],
+    ['UNm9.webp','UNm11.webp','UNm12.webp','UNm3.webp'],
+    ['UNm1.webp','UNm14.webp','UNm13.webp','UNm2.webp']
+  ];
 
-  const allBlockImages = new Set();
-  rows.forEach(r => {
-    r.p.forEach(img => allBlockImages.add(String(img).endsWith('.webp')?String(img):String(img)+'.webp'));
-    allBlockImages.add(String(r.s).endsWith('.webp')?String(r.s):String(r.s)+'.webp');
-  });
-  
-  await Promise.all([...allBlockImages].map(img => loadImageCached(img)));
+  // Counterbalanced pairs of (target1, target2) across locations 1..4 (each location appears 4 times as T1 and 4 times as T2)
+  const targetPairs = [
+    [1, 3], [2, 4], [3, 1], [4, 2],
+    [1, 2], [2, 3], [3, 4], [4, 1],
+    [1, 4], [2, 1], [3, 2], [4, 3],
+    [1, 3], [2, 4], [3, 1], [4, 2]
+  ].sort(() => Math.random() - 0.5);
 
-  let trialIndex=0;
-  const go=()=>{
-    if(trialIndex>=rows.length){
+  const combined = [
+    ...femaleSets.map(faces => ({ block: 'F', faces })),
+    ...maleSets.map(faces => ({ block: 'M', faces }))
+  ].sort(() => Math.random() - 0.5);
+
+  return combined.map((item, idx) => ({
+    block: item.block,
+    faces: item.faces,
+    target1: targetPairs[idx][0],
+    target2: targetPairs[idx][1]
+  }));
+}
+
+function runValidationExperiment() {
+  document.body.style.cursor = 'none';
+  const trialsList = generate16ValidationTrials();
+  let trialIdx = 0;
+
+  const nextTrial = () => {
+    if (trialIdx >= trialsList.length) {
       document.body.style.cursor = 'default';
-      if(block === 1) {
-        screenSessionBreak(); 
-      } else {
-        screen16();
-      }
+      finishSavingScreen();
       return;
     }
-    const r=rows[trialIndex++];
-    const faces=r.p.map(x=>String(x).endsWith('.webp')?String(x):String(x)+'.webp');
-    const tno=trialIndex;
 
+    const tr = trialsList[trialIdx++];
+    const tno = trialIdx;
     currentTrialCalibAttempts = 1;
 
     run6PointCalibration(() => {
-      base(`<div class="trial-grid" style="visibility:hidden">${faces.map((x,j)=>picture(x,'pos p'+(j+1))).join('')}</div>`);
-      
+      base(`
+        <div class="progress-pill">סבב ${tno} מתוך ${trialsList.length}</div>
+        <div class="trial-grid" style="visibility:hidden">
+          ${tr.faces.map((f, i) => `
+            <div id="card_${i+1}" class="face-card p${i+1}">
+              <div class="target-badge">התמקד/י כאן</div>
+              ${picture(f)}
+            </div>
+          `).join('')}
+        </div>
+      `);
+
       const imgElements = Array.from(document.querySelectorAll('.trial-grid img'));
       Promise.all(imgElements.map(img => img.decode ? img.decode().catch(()=>{}) : Promise.resolve())).then(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const grid = document.querySelector('.trial-grid');
-            if(!grid) return;
+            if (!grid) return;
             grid.style.visibility = 'visible';
-            
-            const t0=performance.now();
-            track(t0, sex, tno, r.ffi, r.ffl);
 
-            setTimeout(()=>{
-              base('<div class="bottom-fix">+</div>');
-              setTimeout(()=>response([...faces,r.s,r.c], go, false, {
-                block: sex,
-                trial: tno,
-                ffi: r.ffi,
-                ffl: r.ffl,
-                singleStimulus: r.s,
-                isFamiliarStimulus: (r.s === f1 || r.s === f2) ? 1 : 0,
-                correctKey: r.c,
-                calibAttempts: currentTrialCalibAttempts
-              }), 3000);
-            },5000);
+            const t0 = performance.now();
+            const isExcluded = currentTrialCalibAttempts > 3;
+
+            S.trials.push({
+              participant: S.id,
+              trial: tno,
+              block: tr.block,
+              face1: tr.faces[0],
+              face2: tr.faces[1],
+              face3: tr.faces[2],
+              face4: tr.faces[3],
+              target1: tr.target1,
+              target2: tr.target2,
+              calibAttempts: currentTrialCalibAttempts,
+              excluded: isExcluded ? 1 : 0
+            });
+
+            // Switch highlight at 500ms -> Target 1
+            const t1Timer = setTimeout(() => {
+              document.getElementById(`card_${tr.target1}`)?.classList.add('target-active');
+            }, 500);
+
+            // Switch highlight at 2750ms -> Target 2
+            const t2Timer = setTimeout(() => {
+              document.getElementById(`card_${tr.target1}`)?.classList.remove('target-active');
+              document.getElementById(`card_${tr.target2}`)?.classList.add('target-active');
+            }, 2750);
+
+            // Track gaze for 5000ms
+            trackValidationTrial(t0, tr.block, tno, tr.target1, tr.target2, isExcluded);
+
+            // End trial at 5000ms -> 1500ms fixation -> next trial
+            setTimeout(() => {
+              clearTimeout(t1Timer);
+              clearTimeout(t2Timer);
+              base(`<div class="progress-pill">סבב ${tno} מתוך ${trialsList.length}</div><div class="bottom-fix">+</div>`);
+              setTimeout(nextTrial, 1500);
+            }, 5000);
           });
         });
       });
-    }, false);
+    });
   };
-  go();
+
+  nextTrial();
 }
 
-function track(t0, sex, trial, ffi, ffl){
-  const stopAt=t0+5000;
-  const inc1exc0 = (typeof currentTrialCalibAttempts !== 'undefined' && currentTrialCalibAttempts > 3) ? 0 : 1;
+function trackValidationTrial(t0, block, trial, target1, target2, isExcluded) {
+  const stopAt = t0 + 5000;
+  const inc1exc0 = isExcluded ? 0 : 1;
 
-  const f=()=>{
-    const now=performance.now();
-    if(now>=stopAt)return;
-    
+  const sampleFrame = () => {
+    const now = performance.now();
+    const elapsed = now - t0;
+    if (now >= stopAt) return;
+
+    let phase = 'Baseline';
+    let activeTarget = 0; // 0 = no target highlighted yet (0-500ms)
+    if (elapsed > 500 && elapsed <= 2750) {
+      phase = 'Target1';
+      activeTarget = target1;
+    } else if (elapsed > 2750) {
+      phase = 'Target2';
+      activeTarget = target2;
+    }
+
     const gaze = predictGaze();
-    let normX = null, normY = null, quadrant = null, gaze_location = null, eof = 0;
+    let normX = null, normY = null, quadrant = null, gaze_location = null, on_target = 0;
 
     if (gaze && gaze.x !== null && gaze.y !== null) {
       normX = gaze.x / window.innerWidth;
@@ -1414,235 +893,198 @@ function track(t0, sex, trial, ffi, ffl){
       else if (normX < 0.5 && normY >= 0.5) { quadrant = "BottomLeft"; gaze_location = 4; }
     }
 
-    if (ffi === 1 && gaze_location !== null && gaze_location === ffl) {
-      eof = 1;
-    } else {
-      eof = 0;
+    if (activeTarget !== 0 && gaze_location !== null && gaze_location === activeTarget) {
+      on_target = 1;
     }
 
     S.raw.push({
       participant: S.id,
-      block: sex,
+      block: block,
       trial: trial,
       included1excluded0: inc1exc0,
-      ffi: ffi,
-      ffl: ffl,
-      timestamp: Number((now - t0).toFixed(2)),
+      timestamp: Number(elapsed.toFixed(2)),
+      phase: phase,
+      target1: target1,
+      target2: target2,
+      active_target: activeTarget,
       gazeX: gaze?.x ? Number(gaze.x.toFixed(2)) : null,
       gazeY: gaze?.y ? Number(gaze.y.toFixed(2)) : null,
       normX: normX !== null ? Number(normX.toFixed(4)) : null,
       normY: normY !== null ? Number(normY.toFixed(4)) : null,
       quadrant: quadrant,
       gaze_location: gaze_location,
-      eof: eof,
+      on_target: on_target,
       HIF: isAligned ? 1 : 0,
       screenWidth: window.innerWidth,
-      screenHeight: window.innerHeight,
-      phase: (now - t0) <= 1000 ? 'Phase1' : 'Phase2'
+      screenHeight: window.innerHeight
     });
 
-    requestAnimationFrame(f);
+    requestAnimationFrame(sampleFrame);
   };
-  requestAnimationFrame(f);
-}
 
-function screen16(){
-  if(cameraUtils) cameraUtils.stop();
-  document.getElementById('cameraPopup')?.classList.remove('show');
-  const popup = document.getElementById('cameraPopup');
-  if (popup) {
-    popup.classList.remove('show', 'good', 'bad');
-    popup.style.display = 'none';
-  }
-  base(`
-    <div class="panel" style="text-align: center; max-width: 850px; direction: rtl; font-size: 24px; line-height: 1.6; padding: 30px;">
-      <h2>מעקב העיניים הסתיים</h2>
-      <p style="margin-bottom: 20px;">אפשר להירגע. כעת תתבצע משימת דירוג קצרה.</p>
-      <p>בשלב הבא יש לדרג (בסולם של 1-9) את המידה בה כל פרצוף תפס לך את העין.</p>
-      <p style="margin-top: 15px; margin-bottom: 10px;">כאשר:</p>
-      <p><span style="color: #002060; font-weight: bold;">1</span> = במידה מועטה מאוד</p>
-      <p><span style="color: #002060; font-weight: bold;">9</span> = במידה רבה מאוד</p>
-      <button class="btn" id="b" style="margin-top: 30px;">המשך</button>
-    </div>
-  `);
-  document.getElementById('b').onclick=()=>ratings();
-}
-
-function ratings(){
-  const all=[...Array.from({length:14},(_,i)=>`UNf${i+1}.webp`),...S.female,...Array.from({length:14},(_,i)=>`UNm${i+1}.webp`),...S.male];
-  const go=()=>{
-    if(!ratings.i)ratings.i=0;
-    if(ratings.i>=all.length) return finishSavingScreen();
-
-    base(`
-      <div class="rating-instruction-text">באיזה מידה פרצוף זה תפס לך את העין?</div>
-      ${picture(all[ratings.i],'rating-face')}
-      <div class="rating-labels">
-        <span>9 = במידה רבה מאוד</span>
-        <span>1 = במידה מועטה מאוד</span>
-      </div>
-      <div class="scale">
-        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="ratings.rate(${n})">${n}</button>`).join('')}
-      </div>
-    `);
-  };
-  ratings.rate=n=>{
-    S.ratings.push({stimulus:all[ratings.i],rating:n});
-    ratings.i++;
-    go();
-  };
-  go();
+  requestAnimationFrame(sampleFrame);
 }
 
 // ==========================================
-// CSV Conversion & Download Helpers
+// Build Validation CSVs (Summary & Raw Gaze)
 // ==========================================
-function buildSummaryCSV() {
-  const allMainTrials = S.trials.filter(t => t.phase === 'main');
-  const validMainTrials = allMainTrials.filter(t => !t.excluded);
+function buildValidationSummaryCSV() {
+  const allTrials = S.trials;
+  const validTrials = allTrials.filter(t => !t.excluded);
+  const validTrialNums = new Set(validTrials.map(t => t.trial));
 
   const mean = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
   const pct = (num, den) => den ? ((num / den) * 100) : null;
   const fmt = val => (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(2) : '';
 
-  const noOfExcludedTrials = allMainTrials.filter(t => t.excluded).length;
-  const perOfExcludedTrials = pct(noOfExcludedTrials, allMainTrials.length);
+  const noOfExcludedTrials = allTrials.filter(t => t.excluded).length;
+  const perOfExcludedTrials = pct(noOfExcludedTrials, allTrials.length);
 
-  const totalRawSamples = S.raw.length;
-  const totalTrackingSeconds = allMainTrials.length * 5;
-  const avgSamplingRateFPS = totalTrackingSeconds > 0 ? (totalRawSamples / totalTrackingSeconds) : null;
+  const totalTrackingSeconds = allTrials.length * 5;
+  const avgSamplingRateFPS = totalTrackingSeconds > 0 ? (S.raw.length / totalTrackingSeconds) : null;
 
-  const calcGazePct = (blockFilter = null, phaseName = 'Phase1') => {
-    const samples = S.raw.filter(r => r.ffi === 1 && r.phase === phaseName && (blockFilter === null || r.block === blockFilter));
-    if (!samples.length) return null;
-    const eofCount = samples.filter(r => r.eof === 1).length;
-    return (eofCount / samples.length) * 100;
+  const validRaw = S.raw.filter(r => validTrialNums.has(r.trial));
+
+  // Accuracy in Target 1 (full 500-2750ms) and Target 1 Settled (after 300ms saccade latency: 800-2750ms)
+  const t1Samples = validRaw.filter(r => r.phase === 'Target1');
+  const t1SettledSamples = validRaw.filter(r => r.phase === 'Target1' && r.timestamp >= 800);
+
+  // Accuracy in Target 2 (full 2750-5000ms) and Target 2 Settled (after 300ms saccade latency: 3050-5000ms)
+  const t2Samples = validRaw.filter(r => r.phase === 'Target2');
+  const t2SettledSamples = validRaw.filter(r => r.phase === 'Target2' && r.timestamp >= 3050);
+
+  // Overall accuracy across both active target phases
+  const allActiveSamples = validRaw.filter(r => r.active_target !== 0);
+  const allSettledSamples = [...t1SettledSamples, ...t2SettledSamples];
+
+  // Chance baseline check: during Baseline (0-500ms), how often is gaze already on Target 1 by chance? (Expected ~25%)
+  const baselineSamples = validRaw.filter(r => r.phase === 'Baseline');
+  const baselineOnT1Pct = baselineSamples.length
+    ? (baselineSamples.filter(r => r.gaze_location === r.target1).length / baselineSamples.length) * 100
+    : null;
+
+  // Per-quadrant accuracy
+  const quadAcc = (q) => {
+    const qSamples = allSettledSamples.filter(r => r.active_target === q);
+    if (!qSamples.length) return null;
+    return (qSamples.filter(r => r.on_target === 1).length / qSamples.length) * 100;
   };
 
-  const gazePctP1Overall = calcGazePct(null, 'Phase1');
-  const gazePctP2Overall = calcGazePct(null, 'Phase2');
-  const gazePctP1Female = calcGazePct('F', 'Phase1');
-  const gazePctP2Female = calcGazePct('F', 'Phase2');
-  const gazePctP1Male = calcGazePct('M', 'Phase1');
-  const gazePctP2Male = calcGazePct('M', 'Phase2');
+  // Compute Saccade / Gaze Acquisition Latency per trial (ms from cue onset until 2 consecutive samples land on target)
+  const t1Latencies = [];
+  const t2Latencies = [];
 
-  const rtOverall = mean(validMainTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errOverall = pct(validMainTrials.filter(t => !t.correct || t.timeout).length, validMainTrials.length);
+  validTrials.forEach(tr => {
+    const trSamples = validRaw.filter(r => r.trial === tr.trial);
 
-  const famStimTrials = validMainTrials.filter(t => t.isFamiliarStimulus === 1);
-  const rtFamStim = mean(famStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errFamStim = pct(famStimTrials.filter(t => !t.correct || t.timeout).length, famStimTrials.length);
+    const s1 = trSamples.filter(r => r.phase === 'Target1');
+    for (let i = 0; i < s1.length - 1; i++) {
+      if (s1[i].on_target === 1 && s1[i+1].on_target === 1) {
+        t1Latencies.push(s1[i].timestamp - 500);
+        break;
+      }
+    }
 
-  const unfamStimTrials = validMainTrials.filter(t => t.isFamiliarStimulus === 0);
-  const rtUnfamStim = mean(unfamStimTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errUnfamStim = pct(unfamStimTrials.filter(t => !t.correct || t.timeout).length, unfamStimTrials.length);
-
-  const yesTrials = validMainTrials.filter(t => t.correctKey === 'i');
-  const rtYes = mean(yesTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errYes = pct(yesTrials.filter(t => !t.correct || t.timeout).length, yesTrials.length);
-
-  const noTrials = validMainTrials.filter(t => t.correctKey === 'e');
-  const rtNo = mean(noTrials.filter(t => t.correct && t.rt !== null).map(t => t.rt));
-  const errNo = pct(noTrials.filter(t => !t.correct || t.timeout).length, noTrials.length);
-
-  const familiarSet = new Set([...S.female, ...S.male].map(x => String(x).split('/').pop()));
-  const famRatings = S.ratings.filter(r => familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
-  const unfamRatings = S.ratings.filter(r => !familiarSet.has(String(r.stimulus).split('/').pop())).map(r => r.rating);
-
-  const ratingFamMean = mean(famRatings);
-  const ratingUnfamMean = mean(unfamRatings);
+    const s2 = trSamples.filter(r => r.phase === 'Target2');
+    for (let i = 0; i < s2.length - 1; i++) {
+      if (s2[i].on_target === 1 && s2[i+1].on_target === 1) {
+        t2Latencies.push(s2[i].timestamp - 2750);
+        break;
+      }
+    }
+  });
 
   const rows = [];
-
-  rows.push('--- AGGREGATED SUMMARY METRICS ---');
+  rows.push('--- VALIDATION AGGREGATED SUMMARY METRICS ---');
   const summaryHeaders = [
-    'participant', 'age', 'gender', 'practice_runs_count',
-    'NoOfExcludedTrials', 'PerOfExcludedTrials', 'avg_sampling_rate_fps',
-    'gaze_pct_fam_phase1_overall', 'gaze_pct_fam_phase2_overall',
-    'gaze_pct_fam_phase1_female', 'gaze_pct_fam_phase2_female',
-    'gaze_pct_fam_phase1_male', 'gaze_pct_fam_phase2_male',
-    'rt_overall_mean_ms', 'error_rate_overall_pct',
-    'rt_fam_stimulus_mean_ms', 'error_rate_fam_stimulus_pct',
-    'rt_unfam_stimulus_mean_ms', 'error_rate_unfam_stimulus_pct',
-    'rt_yes_target_mean_ms', 'error_rate_yes_target_pct',
-    'rt_no_target_mean_ms', 'error_rate_no_target_pct',
-    'rating_familiar_mean', 'rating_unfamiliar_mean'
+    'participant', 'age', 'gender',
+    'total_trials', 'NoOfExcludedTrials', 'PerOfExcludedTrials', 'avg_sampling_rate_fps',
+    'baseline_chance_t1_pct',
+    'overall_target_accuracy_pct', 'overall_settled_accuracy_pct',
+    'target1_full_accuracy_pct', 'target1_settled_accuracy_pct',
+    'target2_full_accuracy_pct', 'target2_settled_accuracy_pct',
+    'mean_latency_to_target1_ms', 'mean_latency_to_target2_ms',
+    'accuracy_q1_TopLeft_pct', 'accuracy_q2_TopRight_pct',
+    'accuracy_q3_BottomRight_pct', 'accuracy_q4_BottomLeft_pct'
   ];
   rows.push(summaryHeaders.join(','));
 
   const summaryValues = [
-    `"${S.id}"`, `"${S.age}"`, `"${S.gender}"`, `"${S.practiceRunCount || 1}"`,
-    `"${noOfExcludedTrials}"`, `"${fmt(perOfExcludedTrials)}"`, `"${fmt(avgSamplingRateFPS)}"`,
-    `"${fmt(gazePctP1Overall)}"`, `"${fmt(gazePctP2Overall)}"`,
-    `"${fmt(gazePctP1Female)}"`, `"${fmt(gazePctP2Female)}"`,
-    `"${fmt(gazePctP1Male)}"`, `"${fmt(gazePctP2Male)}"`,
-    `"${fmt(rtOverall)}"`, `"${fmt(errOverall)}"`,
-    `"${fmt(rtFamStim)}"`, `"${fmt(errFamStim)}"`,
-    `"${fmt(rtUnfamStim)}"`, `"${fmt(errUnfamStim)}"`,
-    `"${fmt(rtYes)}"`, `"${fmt(errYes)}"`,
-    `"${fmt(rtNo)}"`, `"${fmt(errNo)}"`,
-    `"${fmt(ratingFamMean)}"`, `"${fmt(ratingUnfamMean)}"`
+    `"${S.id}"`, `"${S.age}"`, `"${S.gender}"`,
+    `"${allTrials.length}"`, `"${noOfExcludedTrials}"`, `"${fmt(perOfExcludedTrials)}"`, `"${fmt(avgSamplingRateFPS)}"`,
+    `"${fmt(baselineOnT1Pct)}"`,
+    `"${fmt(pct(allActiveSamples.filter(r => r.on_target === 1).length, allActiveSamples.length))}"`,
+    `"${fmt(pct(allSettledSamples.filter(r => r.on_target === 1).length, allSettledSamples.length))}"`,
+    `"${fmt(pct(t1Samples.filter(r => r.on_target === 1).length, t1Samples.length))}"`,
+    `"${fmt(pct(t1SettledSamples.filter(r => r.on_target === 1).length, t1SettledSamples.length))}"`,
+    `"${fmt(pct(t2Samples.filter(r => r.on_target === 1).length, t2Samples.length))}"`,
+    `"${fmt(pct(t2SettledSamples.filter(r => r.on_target === 1).length, t2SettledSamples.length))}"`,
+    `"${fmt(mean(t1Latencies))}"`,
+    `"${fmt(mean(t2Latencies))}"`,
+    `"${fmt(quadAcc(1))}"`,
+    `"${fmt(quadAcc(2))}"`,
+    `"${fmt(quadAcc(3))}"`,
+    `"${fmt(quadAcc(4))}"`
   ];
   rows.push(summaryValues.join(','));
 
   rows.push('');
-
-  rows.push('--- MAIN TASK TRIALS ---');
+  rows.push('--- VALIDATION TRIAL-BY-TRIAL BREAKDOWN ---');
   const trialHeaders = [
-    'participant', 'block', 'trial', 'ffi', 'ffl', 'single_stimulus', 
-    'is_familiar_stimulus', 'expected_answer', 'correct_key', 'response_key', 
-    'correct', 'timeout', 'rt_ms', 'calibration_attempts', 'excluded'
+    'participant', 'trial', 'block', 'face1', 'face2', 'face3', 'face4',
+    'target1', 'target2', 't1_settled_acc_pct', 't2_settled_acc_pct',
+    'latency_t1_ms', 'latency_t2_ms', 'calibration_attempts', 'excluded'
   ];
   rows.push(trialHeaders.join(','));
 
-  allMainTrials.forEach(t => {
+  allTrials.forEach(tr => {
+    const trRaw = S.raw.filter(r => r.trial === tr.trial);
+    const s1 = trRaw.filter(r => r.phase === 'Target1' && r.timestamp >= 800);
+    const s2 = trRaw.filter(r => r.phase === 'Target2' && r.timestamp >= 3050);
+
+    const acc1 = pct(s1.filter(r => r.on_target === 1).length, s1.length);
+    const acc2 = pct(s2.filter(r => r.on_target === 1).length, s2.length);
+
+    let lat1 = null;
+    const s1Full = trRaw.filter(r => r.phase === 'Target1');
+    for (let i = 0; i < s1Full.length - 1; i++) {
+      if (s1Full[i].on_target === 1 && s1Full[i+1].on_target === 1) {
+        lat1 = s1Full[i].timestamp - 500;
+        break;
+      }
+    }
+
+    let lat2 = null;
+    const s2Full = trRaw.filter(r => r.phase === 'Target2');
+    for (let i = 0; i < s2Full.length - 1; i++) {
+      if (s2Full[i].on_target === 1 && s2Full[i+1].on_target === 1) {
+        lat2 = s2Full[i].timestamp - 2750;
+        break;
+      }
+    }
+
     rows.push([
-      `"${S.id}"`,
-      `"${t.block}"`,
-      `"${t.trial}"`,
-      `"${t.ffi}"`,
-      `"${t.ffl}"`,
-      `"${t.singleStimulus}"`,
-      `"${t.isFamiliarStimulus}"`,
-      `"${t.expectedAnswer}"`,
-      `"${t.correctKey}"`,
-      `"${t.key || ''}"`,
-      `"${t.correct ? 1 : 0}"`,
-      `"${t.timeout ? 1 : 0}"`,
-      `"${t.rt !== null && t.rt !== undefined ? Number(t.rt).toFixed(2) : ''}"`,
-      `"${t.calibAttempts || 1}"`,
-      `"${t.excluded ? 1 : 0}"`
+      `"${S.id}"`, `"${tr.trial}"`, `"${tr.block}"`,
+      `"${tr.faces[0]}"`, `"${tr.faces[1]}"`, `"${tr.faces[2]}"`, `"${tr.faces[3]}"`,
+      `"${tr.target1}"`, `"${tr.target2}"`,
+      `"${fmt(acc1)}"`, `"${fmt(acc2)}"`,
+      `"${fmt(lat1)}"`, `"${fmt(lat2)}"`,
+      `"${tr.calibAttempts}"`, `"${tr.excluded}"`
     ].join(','));
   });
 
-  rows.push('');
-
-  rows.push('--- FACE RATINGS ---');
-  const ratingHeaders = ['participant', 'stimulus', 'is_familiar', 'rating'];
-  rows.push(ratingHeaders.join(','));
-
-  S.ratings.forEach(r => {
-    const isFam = familiarSet.has(String(r.stimulus).split('/').pop()) ? 1 : 0;
-    rows.push([
-      `"${S.id}"`,
-      `"${r.stimulus}"`,
-      `"${isFam}"`,
-      `"${r.rating}"`
-    ].join(','));
-  });
-
-  return rows.join('\n');
+  return rows.join('
+');
 }
 
-function buildRawGazeCSV() {
+function buildValidationRawGazeCSV() {
   if (!S.raw || S.raw.length === 0) return '';
   const headers = [
-    'participant', 'block', 'trial', 'included1excluded0', 'ffi', 'ffl', 'timestamp', 
-    'gazeX', 'gazeY', 'normX', 'normY', 'quadrant', 'gaze_location', 
-    'eof', 'HIF', 'screenWidth', 'screenHeight', 'phase'
+    'participant', 'block', 'trial', 'included1excluded0', 'timestamp', 'phase',
+    'target1', 'target2', 'active_target', 'gazeX', 'gazeY', 'normX', 'normY',
+    'quadrant', 'gaze_location', 'on_target', 'HIF', 'screenWidth', 'screenHeight'
   ];
   const rows = [headers.join(',')];
-
   S.raw.forEach(r => {
     const row = headers.map(h => {
       const val = r[h] === null || r[h] === undefined ? '' : r[h];
@@ -1650,13 +1092,13 @@ function buildRawGazeCSV() {
     });
     rows.push(row.join(','));
   });
-
-  return rows.join('\n');
+  return rows.join('
+');
 }
 
 function downloadCSV(csvContent, fileName) {
   if (!csvContent) return;
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
@@ -1668,15 +1110,22 @@ function downloadCSV(csvContent, fileName) {
 }
 
 // ==========================================
-// Firebase Storage Save Flow
+// Save to Dedicated Firestore Collection: 'validation_participants'
 // ==========================================
 function finishSavingScreen() {
-  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>אנא המתן/ני בזמן שהנתונים נשמרים</h1><p>הנתונים נשלחים לשרת תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אנא אל תסגור/י את הדף.</span></p></div>`);
+  if (cameraUtils) cameraUtils.stop();
+  const popup = document.getElementById('cameraPopup');
+  if (popup) {
+    popup.classList.remove('show', 'good', 'bad');
+    popup.style.display = 'none';
+  }
 
-  const csvSummary = buildSummaryCSV();
-  const csvRaw = buildRawGazeCSV();
+  base(`${picture('biu_logo.png','logo')}<div class="panel"><h1>שומר נתוני ולידציה...</h1><p>אנא המתן/י, הנתונים נשמרים תחת מספר משתתף ${S.id}. <span style="color: darkred; font-weight: bold;">אין לסגור את הדף.</span></p></div>`);
 
-  db.collection('participants').doc(`participant_${S.id}`).set({
+  const csvSummary = buildValidationSummaryCSV();
+  const csvRaw = buildValidationRawGazeCSV();
+
+  db.collection('validation_participants').doc(`val_participant_${S.id}`).set({
     participantId: S.id,
     age: S.age || null,
     gender: S.gender || null,
@@ -1685,38 +1134,28 @@ function finishSavingScreen() {
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   })
   .then(() => {
-    console.log("הנתונים נשמרו בהצלחה ב-Firestore!");
     finalScreen(false);
   })
   .catch((error) => {
-    console.error("שגיאה בשמירת הנתונים ב-Firestore:", error);
-    
-    downloadCSV(csvSummary, `participant_${S.id}_summary.csv`);
-    downloadCSV(csvRaw, `participant_${S.id}_raw_gaze.csv`);
-    
+    console.error("Firestore save error:", error);
+    downloadCSV(csvSummary, `val_participant_${S.id}_summary.csv`);
+    downloadCSV(csvRaw, `val_participant_${S.id}_raw_gaze.csv`);
     finalScreen(true);
   });
 }
 
 function finalScreen(hasError = false) {
-  let message = "הניסוי הסתיים והנתונים נשמרו בהצלחה בשרת בפורמט CSV.";
-  if (hasError) {
-    message = "הניסוי הסתיים. הייתה שגיאה בחיבור לענן, לכן קובצי ה-CSV הורדו באופן אוטומטי למחשב שלך כגיבוי.";
-  }
-
+  const msg = hasError
+    ? "הניסוי הסתיים. הייתה שגיאת חיבור לענן, ולכן קובצי ה-CSV הורדו אוטומטית למחשב כגיבוי."
+    : "הניסוי הסתיים והנתונים נשמרו בהצלחה בשרת!";
   base(`
     ${picture('biu_logo.png','logo')}
     <div class="panel">
-      <h1>תודה רבה על השתתפותך 😊</h1>
-      <p>${message}</p>
-      <h2 style="margin-top: 30px; color: #ffea00;">כעת ניתן לצאת מדף זה.</h2>
+      <h1>תודה רבה על ההשתתפות! 😊</h1>
+      <p style="font-size:22px;">${msg}</p>
+      <h2 style="margin-top:24px;color:#ffea00;">ניתן לצאת כעת מהדף.</h2>
     </div>
   `);
-}
-
-function exit(t){
-  document.body.style.cursor = 'default';
-  base(`<div class="panel"><h2>${t}</h2></div>`);
 }
 
 preload();
