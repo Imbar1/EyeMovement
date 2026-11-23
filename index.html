@@ -163,20 +163,7 @@ h2{font-size:30px;margin-top:0}
   background: rgba(0,255,102,0.18);
   box-shadow: 0 0 10px rgba(0,255,102,0.8);
 }
-.progress-pill {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  right: auto;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 32, 96, 0.75);
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 16px;
-  font-weight: bold;
-  z-index: 50;
-  pointer-events: none;
-}
+
 </style>
 </head>
 <body>
@@ -917,18 +904,26 @@ function runValidationExperiment() {
     const tno = trialIdx;
     currentTrialCalibAttempts = 1;
 
-    run6PointCalibration(() => {
-      base(`
-        <div class="progress-pill">סבב ${tno} מתוך ${trialsList.length}</div>
-        <div class="trial-grid" style="visibility:hidden">
-          ${tr.faces.map((f, i) => `
-            <div id="card_${i+1}" class="face-card p${i+1}">
-              <div class="target-badge">התמקד/י כאן</div>
-              ${picture(f)}
-            </div>
-          `).join('')}
+    base(`
+      <div style="text-align: center;">
+        <div style="font-size: 46px; font-weight: bold; color: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.35);">
+          סבב ${tno} מתוך ${trialsList.length}
         </div>
-      `);
+      </div>
+    `);
+
+    setTimeout(() => {
+      run6PointCalibration(() => {
+        base(`
+          <div class="trial-grid" style="visibility:hidden">
+            ${tr.faces.map((f, i) => `
+              <div id="card_${i+1}" class="face-card p${i+1}">
+                <div class="target-badge">התמקד/י כאן</div>
+                ${picture(f)}
+              </div>
+            `).join('')}
+          </div>
+        `);
 
       const imgElements = Array.from(document.querySelectorAll('.trial-grid img'));
       Promise.all(imgElements.map(img => img.decode ? img.decode().catch(()=>{}) : Promise.resolve())).then(() => {
@@ -973,13 +968,14 @@ function runValidationExperiment() {
             setTimeout(() => {
               clearTimeout(t1Timer);
               clearTimeout(t2Timer);
-              base(`<div class="progress-pill">סבב ${tno} מתוך ${trialsList.length}</div><div class="bottom-fix">+</div>`);
+              base(`<div class="bottom-fix">+</div>`);
               setTimeout(nextTrial, 1500);
             }, 5000);
           });
         });
       });
-    });
+      });
+    }, 1500);
   };
 
   nextTrial();
