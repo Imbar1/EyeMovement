@@ -731,45 +731,82 @@ function run6PointCalibration(onComplete) {
   totalCalibSamples = 0;
   smoothGazeX = null;
   smoothGazeY = null;
+  const samplesPerPoint = [0, 0, 0, 0, 0, 0];
 
   let index = 0;
+
+  function failCalibration(reasonMsg) {
+    const popup = document.getElementById('cameraPopup');
+    if (popup) popup.classList.add('show');
+    base(`
+      <div class="panel" style="text-align: center; max-width: 780px;">
+        <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
+        <p style="font-size: 22px; margin: 16px 0;">${reasonMsg}</p>
+        <p style="font-size: 20px;">נא להתייצב מול המצלמה (עד שהמסגרת בצד שמאל ירוקה) ולעקוב בעיניים אחר כל 6 הנקודות מבלי להזיז את הראש.</p>
+        <p style="color: #002060; font-size: 24px; font-weight: bold; margin-top: 20px;">כדי לנסות שוב לחץ/י על מקש "רווח"</p>
+      </div>
+    `);
+    k(e => {
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        document.onkeydown = null;
+        currentTrialCalibAttempts++;
+        run6PointCalibration(onComplete);
+      }
+    });
+  }
 
   function runNextPoint() {
     if (index >= points.length) {
       const validSamples = calibDataX.length;
       const minRequiredValid = 35;
-      const isValid = validSamples >= minRequiredValid && (totalCalibSamples === 0 || (validSamples / totalCalibSamples) >= 0.5);
+      const ratioOk = totalCalibSamples > 0 && (validSamples / totalCalibSamples) >= 0.50;
+      const allPointsCovered = samplesPerPoint.every(c => c >= 4);
 
-      if (!isValid) {
-        base(`
-          <div class="panel" style="text-align: center;">
-            <h2 style="color: #b32626;">שגיאה בכיול תנועות העיניים</h2>
-            <p style="font-size: 22px; margin: 20px 0;">הפנים יצאו מהמסגרת או שהעיניים נעצמו במהלך הכיול.</p>
-            <p style="color: #002060; font-size: 24px; font-weight: bold;">כדי לנסות שוב לחץ/י על מקש "רווח"</p>
-          </div>
-        `);
-        k(e => {
-          if (e.code === 'Space' || e.key === ' ') {
-            e.preventDefault();
-            document.onkeydown = null;
-            currentTrialCalibAttempts++;
-            run6PointCalibration(onComplete);
-          }
-        });
+      if (validSamples < minRequiredValid || !ratioOk || !allPointsCovered) {
+        failCalibration('הפנים יצאו מהמסגרת, העיניים היו עצומות או שלא זוהית בצורה רציפה במהלך הכיול.');
         return;
       }
 
       const X = calibDataX.map(d => d.feat);
       const Yx = calibDataX.map(d => d.target);
       const Yy = calibDataY.map(d => d.target);
-      weightsX = solveLinearRegression(X, Yx);
-      weightsY = solveLinearRegression(X, Yy);
+      const candWX = solveLinearRegression(X, Yx);
+      const candWY = solveLinearRegression(X, Yy);
+
+      // Verify that eyes actually moved across the calibration points and tracked them consistently
+      const meanDx = X.reduce((s, r) => s + (r[1] + r[3]) / 2, 0) / X.length;
+      const meanDy = X.reduce((s, r) => s + (r[2] + r[4]) / 2, 0) / X.length;
+      const stdDx = Math.sqrt(X.reduce((s, r) => s + (((r[1] + r[3]) / 2 - meanDx) ** 2), 0) / X.length);
+      const stdDy = Math.sqrt(X.reduce((s, r) => s + (((r[2] + r[4]) / 2 - meanDy) ** 2), 0) / X.length);
+
+      let sqErrX = 0, sqErrY = 0;
+      for (let i = 0; i < X.length; i++) {
+        let px = 0, py = 0;
+        for (let j = 0; j < X[i].length; j++) {
+          px += X[i][j] * candWX[j];
+          py += X[i][j] * candWY[j];
+        }
+        sqErrX += (px - Yx[i]) ** 2;
+        sqErrY += (py - Yy[i]) ** 2;
+      }
+      const rmseNormX = Math.sqrt(sqErrX / X.length) / window.innerWidth;
+      const rmseNormY = Math.sqrt(sqErrY / X.length) / window.innerHeight;
+
+      if (stdDx < 0.015 || stdDy < 0.008 || rmseNormX > 0.35 || rmseNormY > 0.35 || isNaN(rmseNormX) || isNaN(rmseNormY)) {
+        failCalibration('לא זוהתה תנועת עיניים עקבית אחר 6 נקודות הכיול. יש לעקוב בעיניים אחר כל נקודה מבלי להזיז את הראש.');
+        return;
+      }
+
+      weightsX = candWX;
+      weightsY = candWY;
       onComplete();
       return;
     }
 
     const startPointLogic = () => {
       const pt = points[index];
+      const currentPtIdx = index;
       base(`
         <div class="calib-stage">
           <div class="calib-target" style="left:${pt.x}%;top:${pt.y}%">
@@ -795,6 +832,7 @@ function run6PointCalibration(onComplete) {
             if (currentFeatures && isAligned) {
               calibDataX.push({ feat: [...currentFeatures], target: targetX });
               calibDataY.push({ feat: [...currentFeatures], target: targetY });
+              samplesPerPoint[currentPtIdx]++;
             }
           }
         }
@@ -1246,5 +1284,4 @@ preload();
 </script>
 </body>
 </html>
-
 
