@@ -1073,8 +1073,7 @@ function buildValidationSummaryCSV() {
     ].join(','));
   });
 
-  return rows.join('
-');
+  return rows.join('\n');
 }
 
 function buildValidationRawGazeCSV() {
@@ -1092,13 +1091,12 @@ function buildValidationRawGazeCSV() {
     });
     rows.push(row.join(','));
   });
-  return rows.join('
-');
+  return rows.join('\n');
 }
 
 function downloadCSV(csvContent, fileName) {
   if (!csvContent) return;
-  const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
