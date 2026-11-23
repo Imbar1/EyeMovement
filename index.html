@@ -165,14 +165,16 @@ h2{font-size:30px;margin-top:0}
 }
 .progress-pill {
   position: fixed;
-  top: 12px;
-  right: 16px;
+  top: 50%;
+  right: 50%;
+  transform: translate(-50%, -50%);
   background: rgba(0, 32, 96, 0.75);
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 16px;
   font-weight: bold;
   z-index: 50;
+  pointer-events: none;
 }
 </style>
 </head>
@@ -1243,3 +1245,4 @@ preload();
 </script>
 </body>
 </html>
+
