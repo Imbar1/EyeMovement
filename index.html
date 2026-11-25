@@ -77,8 +77,6 @@ h2{font-size:30px;margin-top:0}
 .p3{left:63vw;top:60vh}
 .p4{left:5vw;top:60vh}
 
-.bottom-fix{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:120px;line-height:1;color:#fff;font-weight:400}
-
 .camera-popup{position:fixed;top:14px;left:14px;z-index:9999;background:#111c;padding:6px;border-radius:8px;display:none;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
 .camera-popup.show{display:block}
 .cam-wrapper{position:relative;width:180px;height:120px;border-radius:4px;overflow:hidden}
@@ -194,6 +192,39 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+// ==========================================
+// Screen Wake Lock (Prevent Dimming / Locking)
+// ==========================================
+let wakeLock = null;
+let experimentFinished = false;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator && !experimentFinished) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => {
+        wakeLock = null;
+      });
+    } catch (err) {
+      console.warn('Wake Lock request failed:', err);
+    }
+  }
+}
+
+function releaseWakeLock() {
+  experimentFinished = true;
+  if (wakeLock !== null) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !experimentFinished && S.id) {
+    requestWakeLock();
+  }
+});
 
 // ==========================================
 // Assets & State
@@ -487,6 +518,7 @@ function screen1() {
     S.age = age;
     S.gender = gender;
     enterFullscreen();
+    requestWakeLock();
     screenRequirements();
   };
 }
@@ -573,7 +605,7 @@ function screenInstructions() {
     <div class="panel" style="width: min(1020px, 95vw); text-align: right; padding: 22px 30px;">
       <h2 style="text-align: center; color: #002060; margin-bottom: 10px;">איך עובדת המשימה?</h2>
       <p style="font-size: 20px; line-height: 1.5; margin-bottom: 8px;">
-        הניסוי קצר וכולל <strong>16 סבבים</strong>. בכל סבב יקרה הרצף הבא:
+        הניסוי קצר וכולל <strong>16 סבבים</strong> (אין צורך ללחוץ על שום מקש במהלך הסבבים). בכל סבב יקרה הרצף הבא:
       </p>
       <ul style="font-size: 19px; line-height: 1.55; margin-bottom: 12px; list-style-type: disc; padding-right: 24px;">
         <li><strong>שלב כיול קצר:</strong> עקוב/י בעיניים בלבד אחר הנקודה הלבנה שנעה על המסך (מרכז ➔ פינות ➔ מרכז) <strong>מבלי להזיז את הראש כלל</strong>.</li>
@@ -581,7 +613,6 @@ function screenInstructions() {
           <br>– לאחר רגע קצרצר תידלק <strong>מסגרת ירוקה בולטת</strong> סביב אחד הפרצופים – יש להסתכל ישירות עליו.
           <br>– לאחר כמה רגעים המסגרת הירוקה <strong>תעבור לפרצוף אחר</strong> – יש להעביר אליו את המבט מיד ולהתמקד בו.
         </li>
-        <li><strong>מסך מנוחה קצר (+):</strong> מנוחה קצרה לעיניים לפני הסבב הבא (אין צורך ללחוץ על שום מקש).</li>
       </ul>
 
       <div class="illus-row">
@@ -655,6 +686,7 @@ function screenFaceSetup() {
 
   document.getElementById('goCalBtn').onclick = () => {
     enterFullscreen();
+    requestWakeLock();
     isFaceSetupScreen = false;
     document.getElementById('cameraPopup')?.classList.remove('show');
     countdown();
@@ -964,12 +996,11 @@ function runValidationExperiment() {
             // Track gaze for 5000ms
             trackValidationTrial(t0, tr.block, tno, tr.target1, tr.target2, isExcluded);
 
-            // End trial at 5000ms -> 1500ms fixation -> next trial
+            // End trial at 5000ms -> directly proceed to next trial
             setTimeout(() => {
               clearTimeout(t1Timer);
               clearTimeout(t2Timer);
-              base(`<div class="bottom-fix">+</div>`);
-              setTimeout(nextTrial, 1500);
+              nextTrial();
             }, 5000);
           });
         });
@@ -1231,6 +1262,7 @@ function downloadCSV(csvContent, fileName) {
 // Save to Dedicated Firestore Collection: 'validation_participants'
 // ==========================================
 function finishSavingScreen() {
+  releaseWakeLock();
   if (cameraUtils) cameraUtils.stop();
   const popup = document.getElementById('cameraPopup');
   if (popup) {
@@ -1280,4 +1312,3 @@ preload();
 </script>
 </body>
 </html>
-
